@@ -1,8 +1,21 @@
 name = "r4e-microshift"
+
 description = ""
 version = "0.0.1"
 modules = []
 groups = []
+
+[[packages]]
+name = "conntrack-tools"
+version = "*"
+
+[[packages]]
+name = "firewalld"
+version = "*"
+
+[[packages]]
+name = "rhc"
+version = "*"
 
 [[packages]]
 name = "cri-o"
@@ -10,6 +23,30 @@ version = "*"
 
 [[packages]]
 name = "cri-tools"
+version = "*"
+
+[[packages]]
+name = "podman"
+version = "*"
+
+[[packages]]
+name = "insights-client"
+version = "*"
+
+[[packages]]
+name = "rhc-worker-playbook"
+version = "*"
+
+[[packages]]
+name = "ansible"
+version = "*"
+
+[[packages]]
+name = "subscription-manager-plugin-ostree"
+version = "1.26.*"
+
+[[packages]]
+name = "subscription-manager"
 version = "*"
 
 [customizations]
