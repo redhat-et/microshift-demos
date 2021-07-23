@@ -3,6 +3,7 @@
 set -euo pipefail
 
 CLUSTER_NAME=${1:? "\$1 should be a cluster name in the standard FQDN format"}
+BUCKET=acm-microshift-demo
 
 WORK_DIR=$HOME/.acm/"$CLUSTER_NAME"
 SPOKE_DIR="$WORK_DIR"/spoke
@@ -51,3 +52,5 @@ sleep 3
 echo "Creating kluster-crd.yaml and import.yaml.  These files need to be accessible to the client script"
 oc get secret "$CLUSTER_NAME"-import -n "$CLUSTER_NAME" -o jsonpath={.data.crds\\.yaml} | base64 --decode >"$SPOKE_DIR"/klusterlet-crd.yaml
 oc get secret "$CLUSTER_NAME"-import -n "$CLUSTER_NAME" -o jsonpath={.data.import\\.yaml} | base64 --decode >"$SPOKE_DIR"/import.yaml
+
+aws s3 cp --recursive $SPOKE_DIR/ s3://$BUCKET/$CLUSTER_NAME/

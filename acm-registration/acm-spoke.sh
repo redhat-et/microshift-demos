@@ -2,9 +2,8 @@
 
 set -eu
 
-CLUSTER_NAME=${1:?"expected the cluster name, required to find import data"}
-WORK_DIR="$HOME/.acm/$CLUSTER_NAME/spoke"
 
-oc apply -f "$WORK_DIR"/klusterlet-crd.yaml
-sleep 2
-oc apply -f "$WORK_DIR"/import.yaml
+CLUSTER_NAME=${1:?"expected the cluster name, required to find import data"}
+BUCKET=acm-microshift-demo
+aws s3 cp --recursive s3://$BUCKET/$CLUSTER_NAME /var/lib/microshift/manifests
+
