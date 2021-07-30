@@ -62,10 +62,16 @@ title "Building installer ISO"
 UUID=$(sudo composer-cli compose start-ostree --ref rhel/8/$(uname -i)/edge --url http://localhost:8080/repo/ installer rhel-edge-installer | awk '{print $2}')
 waitfor_image ${UUID}
 download_image ${UUID}
-cp -f ${UUID}-rhel84-boot.iso r4e-microshift-installer.iso
 
 title "Cleaning up local ostree container serving"
 sudo podman rm -f rhel-edge-container 2>/dev/null || true
 sudo podman rmi -f ${IMAGEID} 2>/dev/null || true
 
+title "Embedding kickstart"
+cp ${DEMOROOT}/image-builder/kickstart.ks ${DEMOROOT}/builds/kickstart.ks
+sudo podman run --rm --privileged -ti -v ${DEMOROOT}/builds:/data -v /dev:/dev fedora /bin/bash -c \
+    "dnf -y install lorax; cd /data; mkksiso kickstart.ks ${UUID}-rhel84-boot.iso r4e-microshift-installer.iso; exit"
+sudo chown $(whoami). ${DEMOROOT}/builds/r4e-microshift-installer.iso
+
+title "Done"
 popd &>/dev/null
