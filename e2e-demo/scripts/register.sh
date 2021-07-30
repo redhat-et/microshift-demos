@@ -11,7 +11,7 @@ EOF
 sudo cat >> /etc/insights-client/insights-client.conf << EOF
 auto_config=False
 username=insights-qa
-password=redhat
+password=redhatqa
 legacy_upload=False
 base_url=cert.cloud.stage.redhat.com/api
 cert_verify=True
