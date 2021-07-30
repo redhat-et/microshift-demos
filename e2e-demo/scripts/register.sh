@@ -1,4 +1,4 @@
-sudo cat > /etc/rhc/config.toml << EOF
+sudo tee /etc/rhc/config.toml > /dev/null <<EOF
 # yggdrasil global configuration settings
 broker = ["wss://connect.cloud.stage.redhat.com:443"]
 cert-file = "/etc/pki/consumer/cert.pem"
@@ -8,7 +8,8 @@ data-host = "cert.cloud.stage.redhat.com"
 topic-prefix = "redhat/insights"
 EOF
 
-sudo cat >> /etc/insights-client/insights-client.conf << EOF
+sudo tee /etc/insights-client/insights-client.conf > /dev/null <<EOF
+[insights-client]
 auto_config=False
 username=insights-qa
 password=redhatqa
