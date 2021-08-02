@@ -49,7 +49,27 @@ version = "1.26.*"
 name = "subscription-manager"
 version = "*"
 
+[[packages]]
+name = "transmission-agent"
+version = "0.1.45"
+
+[[packages]]
+name = "iputils"
+version = "*"
+
+[[packages]]
+name = "bind-utils"
+version = "*"
+
+[[packages]]
+name = "net-tools"
+version = "*"
+
+[[packages]]
+name = "iotop"
+version = "*"
+
 [customizations]
 
 [customizations.services]
-enabled = ["crio"]
+enabled = ["crio", "transmission.timer"]
