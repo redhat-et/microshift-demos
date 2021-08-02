@@ -37,6 +37,10 @@ title "Adding RHOCP and Ansible repos to builder"
 sudo cp ${DEMOROOT}/image-builder/rhel-8.json /etc/osbuild-composer/repositories/
 sudo systemctl restart osbuild-composer.service
 
+title "Loading sources"
+sudo composer-cli sources delete transmission 2>/dev/null || true
+sudo composer-cli blueprints push ${DEMOROOT}/image-builder/transmission.toml
+
 title "Loading r4e-microshift blueprint"
 load_blueprint r4e-microshift
 

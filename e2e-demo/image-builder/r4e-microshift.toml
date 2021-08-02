@@ -51,7 +51,7 @@ version = "*"
 
 [[packages]]
 name = "transmission-agent"
-version = "0.1.45"
+version = "0.1.5"
 
 [[packages]]
 name = "iputils"
