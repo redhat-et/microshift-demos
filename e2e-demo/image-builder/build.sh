@@ -74,8 +74,8 @@ sudo podman rmi -f ${IMAGEID} 2>/dev/null || true
 title "Embedding kickstart"
 cp ${DEMOROOT}/image-builder/kickstart.ks ${DEMOROOT}/builds/kickstart.ks
 sudo podman run --rm --privileged -ti -v ${DEMOROOT}/builds:/data -v /dev:/dev fedora /bin/bash -c \
-    "dnf -y install lorax; cd /data; mkksiso kickstart.ks ${UUID}-rhel84-boot.iso r4e-microshift-installer.iso; exit"
-sudo chown $(whoami). ${DEMOROOT}/builds/r4e-microshift-installer.iso
+    "dnf -y install lorax; cd /data; mkksiso kickstart.ks ${UUID}-rhel84-boot.iso r4e-microshift-installer.$(uname -i).iso; exit"
+sudo chown $(whoami). ${DEMOROOT}/builds/r4e-microshift-installer.$(uname -i).iso
 
 title "Done"
 popd &>/dev/null

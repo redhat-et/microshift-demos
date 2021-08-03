@@ -54,6 +54,10 @@ name = "transmission-agent"
 version = "0.1.5"
 
 [[packages]]
+name = "git"
+version = "*"
+
+[[packages]]
 name = "iputils"
 version = "*"
 
