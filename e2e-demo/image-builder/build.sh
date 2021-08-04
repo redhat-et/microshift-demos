@@ -20,6 +20,11 @@ waitfor_image() {
         sleep 10
         STATUS=$(sudo composer-cli compose status | grep $1 | awk '{print $2}')
         echo $(date +'%Y-%m-%d %H:%M:%S') ${STATUS}
+        if [ ${STATUS} == "FAILED" ]
+        then
+            echo "Blueprint build has failed. For more info, download logs from composer."
+            exit 1
+        fi
     done
 }
 
