@@ -34,6 +34,10 @@ mkdir -p ${DEMOROOT}/builds
 pushd ${DEMOROOT}/builds &>/dev/null
 
 title "Adding RHOCP and Ansible repos to builder"
+if [ ! -d "/etc/osbuild-composer/repositories/" ]
+then
+    mkdir -p /etc/osbuild-composer/repositories/
+fi
 sudo cp ${DEMOROOT}/image-builder/rhel-8.json /etc/osbuild-composer/repositories/
 sudo systemctl restart osbuild-composer.service
 
