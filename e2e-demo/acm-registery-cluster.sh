@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+yq --version
+
 CLUSTER_NAME=${1:? "\$1 should be a cluster name in the standard FQDN format"}
 BUCKET=acm-microshift-demo
 
@@ -52,22 +54,6 @@ sleep 3
 echo "Creating kluster-crd.yaml and import.yaml.  These files need to be accessible to the client script"
 oc get secret "$CLUSTER_NAME"-import -n "$CLUSTER_NAME" -o jsonpath={.data.crds\\.yaml} | base64 --decode >"$SPOKE_DIR"/klusterlet-crd.yaml
 oc get secret "$CLUSTER_NAME"-import -n "$CLUSTER_NAME" -o jsonpath={.data.import\\.yaml} | base64 --decode > "$SPOKE_DIR"/import.yaml
-
-python -c '
-import sys
-import yaml
-from yaml import Loader
-
-src_dir = str(sys.argv[1])
-with open(src_dir+"/import.yaml", "r") as file:
-    code = yaml.load_all(file.read(), Loader=Loader)
-    file.close()
-for data in code:
-    if data["metadata"]["name"] == "bootstrap-hub-kubeconfig":
-        with open(src_dir+"/kubeconfig", "w") as file:
-            file.write(data["data"]["kubeconfig"])
-            file.close()
-        break
-' "$SPOKE_DIR"
+yq eval-all '. | select(.metadata.name == "bootstrap-hub-kubeconfig") | .data.kubeconfig' import.yaml | base64 -d > "$SPOKE_DIR"/kubeconfig
 
 aws s3 cp --recursive $SPOKE_DIR/ s3://$BUCKET/$CLUSTER_NAME/
