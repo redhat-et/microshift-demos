@@ -51,6 +51,23 @@ oc apply -f "$WORK_DIR"/klusterlet-addon-config.yaml
 sleep 3
 echo "Creating kluster-crd.yaml and import.yaml.  These files need to be accessible to the client script"
 oc get secret "$CLUSTER_NAME"-import -n "$CLUSTER_NAME" -o jsonpath={.data.crds\\.yaml} | base64 --decode >"$SPOKE_DIR"/klusterlet-crd.yaml
-oc get secret "$CLUSTER_NAME"-import -n "$CLUSTER_NAME" -o jsonpath={.data.import\\.yaml} | base64 --decode >"$SPOKE_DIR"/import.yaml
+oc get secret "$CLUSTER_NAME"-import -n "$CLUSTER_NAME" -o jsonpath={.data.import\\.yaml} | base64 --decode > "$SPOKE_DIR"/import.yaml
+
+python -c '
+import sys
+import yaml
+from yaml import Loader
+
+src_dir = str(sys.argv[1])
+with open(src_dir+"/import.yaml", "r") as file:
+    code = yaml.load_all(file.read(), Loader=Loader)
+    file.close()
+for data in code:
+    if data["metadata"]["name"] == "bootstrap-hub-kubeconfig":
+        with open(src_dir+"/kubeconfig", "w") as file:
+            file.write(data["data"]["kubeconfig"])
+            file.close()
+        break
+' "$SPOKE_DIR"
 
 aws s3 cp --recursive $SPOKE_DIR/ s3://$BUCKET/$CLUSTER_NAME/
