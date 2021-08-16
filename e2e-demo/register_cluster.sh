@@ -2,10 +2,22 @@
 
 set -euo pipefail
 
-yq --version
+if ! command -v yq &> /dev/null
+then
+  mkdir -p $HOME/bin
+  wget https://github.com/mikefarah/yq/releases/download/v4.11.2/yq_linux_amd64 -O $HOME/bin/yq
+  chmod +x $HOME/bin/yq
+  yq --version
+fi
 
-CLUSTER_NAME=${1:? "\$1 should be a cluster name in the standard FQDN format"}
-BUCKET=acm-microshift-demo
+MANIFESTS_DIR=$(git rev-parse --show-toplevel)/var/lib/microshift/manifests
+if [ ! -d "${MANIFESTS_DIR}" ]
+then
+  echo "No klusterlet manifests found in ${MANIFESTS_DIR}. Are you in the config git repo?"
+  exit 1
+fi
+
+CLUSTER_NAME=${1:? "\$1 should be a cluster name (host part of the cluster's FQDN)"}
 
 WORK_DIR=$HOME/.acm/"$CLUSTER_NAME"
 SPOKE_DIR="$WORK_DIR"/spoke
@@ -50,10 +62,11 @@ oc new-project "$CLUSTER_NAME" 1>/dev/null
 oc label namespace "$CLUSTER_NAME" cluster.open-cluster-management.io/managedCluster="$CLUSTER_NAME"
 oc apply -f "$WORK_DIR"/managed-cluster.yaml
 oc apply -f "$WORK_DIR"/klusterlet-addon-config.yaml
-sleep 3
-echo "Creating kluster-crd.yaml and import.yaml.  These files need to be accessible to the client script"
-oc get secret "$CLUSTER_NAME"-import -n "$CLUSTER_NAME" -o jsonpath={.data.crds\\.yaml} | base64 --decode >"$SPOKE_DIR"/klusterlet-crd.yaml
-oc get secret "$CLUSTER_NAME"-import -n "$CLUSTER_NAME" -o jsonpath={.data.import\\.yaml} | base64 --decode > "$SPOKE_DIR"/import.yaml
-yq eval-all '. | select(.metadata.name == "bootstrap-hub-kubeconfig") | .data.kubeconfig' import.yaml | base64 -d > "$SPOKE_DIR"/kubeconfig
 
-aws s3 cp --recursive $SPOKE_DIR/ s3://$BUCKET/$CLUSTER_NAME/
+sleep 3
+
+oc get secret "$CLUSTER_NAME"-import -n "$CLUSTER_NAME" -o jsonpath={.data.import\\.yaml} | base64 --decode > "$SPOKE_DIR"/import.yaml
+
+KUBECONFIG=$(yq eval-all '. | select(.metadata.name == "bootstrap-hub-kubeconfig") | .data.kubeconfig' "$SPOKE_DIR"/import.yaml)
+sed -i "s/{{ .clustername }}/${CLUSTER_NAME}/g" ${MANIFESTS_DIR}/klusterlet.yaml
+sed -i "s/{{ .kubeconfig }}/${KUBECONFIG}/g" ${MANIFESTS_DIR}/klusterlet-kubeconfighub.yaml
