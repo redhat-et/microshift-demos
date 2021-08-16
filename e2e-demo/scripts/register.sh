@@ -19,7 +19,7 @@ cert_verify=True
 proxy=http://squid.corp.redhat.com:3128
 EOF
 
-sudo subscription-manager register
+sudo subscription-manager register < /dev/tty
 sudo systemctl enable --now rhcd
 
 # verify rhcd started
