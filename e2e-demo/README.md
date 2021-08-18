@@ -58,7 +58,7 @@ As the Fleet Manager does not provide device configuration management yet, the d
 
 Therefore, once the device is registered with Insights, look up the Insights ID on the Fleet Manager's info page for your device and store it:
 
-    INSIGHTS_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" # replace with your device's ID
+    DEVICE_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" # replace with your device's Insights ID
 
 Log into your Open Cluster Management instance as admin using `oc`.
 
@@ -66,14 +66,14 @@ Finally, deploy MicroShift from the GitOps repo you created at the beginning usi
    
     git clone ${GITOPS_REPO} microshift-config
     cd microshift-config
-    git checkout -b ${INSIGHTS_ID}
+    git checkout -b ${DEVICE_ID}
 
     CLUSTER_NAME="microshift-demo"
-    curl https://raw.githubusercontent.com/redhat-et/microshift-demos/main/e2e-demo/register_cluster.sh | sh - ${CLUSTER_NAME}
+    curl https://raw.githubusercontent.com/redhat-et/microshift-demos/main/e2e-demo/register_cluster.sh | bash -s - ${CLUSTER_NAME}
 
     git add .
     git commit -m "Update cluster name and ACM credentials"
-    git push origin ${INSIGHTS_ID}
+    git push origin ${DEVICE_ID}
 
 You should have a new branch named after your device's Insights ID in your repo with the configuration of OCM's `klusterlet` agent updated in `/var/lib/microshift/manifests`. The next time Transmission on your device checks for updates, it'll install MicroShift and apply the `klusterlet` configuration. A few moments after MicroShift starts, you should see the new cluster appearing in the OCM console.
 
@@ -81,7 +81,7 @@ You should have a new branch named after your device's Insights ID in your repo 
 
 There is a lot of [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.3/html/applications/index) on how to deploy a new application onto clusters managed by Open Cluster Management.
 
-Follow these steps to deploy an sample application:
+Follow these steps to deploy a sample application:
 
 - Go to Open Cluster Management's application tab.
 - Click on Create application button.
