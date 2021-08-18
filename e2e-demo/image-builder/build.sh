@@ -59,7 +59,7 @@ waitfor_image ${UUID}
 download_image ${UUID}
 
 title "Serving r4e-microshift ostree container locally"
-IMAGEID=$(cat ./${UUID}-rhel84-container.tar | sudo podman load | grep -o -P '(?<=@)[a-z0-9]*')
+IMAGEID=$(cat ./${UUID}-rhel84-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
 sudo podman tag ${IMAGEID} localhost/rhel-edge-container
 sudo podman rm -f rhel-edge-container 2>/dev/null || true
 sudo podman run -d --name=rhel-edge-container -p 8080:80 localhost/rhel-edge-container
