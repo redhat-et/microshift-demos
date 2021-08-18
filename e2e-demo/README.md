@@ -50,7 +50,6 @@ When the device boots into the RHEL 4 Edge image for the first time, it'll event
         curl https://raw.githubusercontent.com/redhat-et/microshift-demos/main/e2e-demo/register_device.sh | sudo sh -
 
 3. When prompted, enter your RHSM credentials.
-4. When prompted, enter your RH Insights credentials.
 
 You should now be able to see your device registered under [https://console.stage.redhat.com/beta/edge/fleet-management](https://console.stage.redhat.com/beta/edge/fleet-management).
 
@@ -79,3 +78,18 @@ Finally, deploy MicroShift from the GitOps repo you created at the beginning usi
 You should have a new branch named after your device's Insights ID in your repo with the configuration of OCM's `klusterlet` agent updated in `/var/lib/microshift/manifests`. The next time Transmission on your device checks for updates, it'll install MicroShift and apply the `klusterlet` configuration. A few moments after MicroShift starts, you should see the new cluster appearing in the OCM console.
 
 ## Deploying a Workload via Open Cluster Management
+
+There is a lot of [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.3/html/applications/index) on how to deploy a new application onto clusters managed by Open Cluster Management.
+
+Follow these steps to deploy an sample application:
+
+- Go to Open Cluster Management's application tab.
+- Click on Create application button.
+- Enter Name and Namespace for your application. Choose Git as repository type, and enter the URL of the git repo where your application manifests are stored and the placement policies you would like. The recommended one for this demo is _Deploy to all online clusters and local cluster_.
+- Click on Save and wait for Open Cluster Management to create all the needed resources.
+
+As an example, you can use the following [git repository](https://github.com/oglok/edge-app). It will deploy a replicated NGINX container and expose it on the 30303 port. Once this application is deployed, you should see the NGINX landing page with your browser using your device's IP address on the port mentioned above:
+
+    http://DEVICE_IP:30303
+
+Open Cluster Management allows you to view where the applications are deployed, and search for resources on specific clusters.
