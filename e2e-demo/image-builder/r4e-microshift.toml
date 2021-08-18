@@ -5,17 +5,8 @@ version = "0.0.1"
 modules = []
 groups = []
 
-[[packages]]
-name = "conntrack-tools"
-version = "*"
 
-[[packages]]
-name = "firewalld"
-version = "*"
-
-[[packages]]
-name = "rhc"
-version = "*"
+# MicroShift dependencies
 
 [[packages]]
 name = "cri-o"
@@ -27,6 +18,32 @@ version = "*"
 
 [[packages]]
 name = "podman"
+version = "*"
+
+[[packages]]
+name = "firewalld"
+version = "*"
+
+[[packages]]
+name = "conntrack-tools"
+version = "*"
+
+
+# configuration management
+
+[[packages]]
+name = "transmission-agent"
+version = "0.1.6"
+
+[[packages]]
+name = "git"
+version = "*"
+
+
+# device management
+
+[[packages]]
+name = "rhc"
 version = "*"
 
 [[packages]]
@@ -49,13 +66,8 @@ version = "1.26.*"
 name = "subscription-manager"
 version = "*"
 
-[[packages]]
-name = "transmission-agent"
-version = "0.1.5"
 
-[[packages]]
-name = "git"
-version = "*"
+# troubleshooting tools
 
 [[packages]]
 name = "iputils"
@@ -73,7 +85,7 @@ version = "*"
 name = "iotop"
 version = "*"
 
-[customizations]
 
+[customizations]
 [customizations.services]
 enabled = ["crio", "transmission.timer"]
