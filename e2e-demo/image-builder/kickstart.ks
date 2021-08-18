@@ -19,7 +19,7 @@ ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCxnQB1tTWJBbt4sGwV9AEfz+Y8FKRvrOaeP3+1O3C0
 EOF
 echo -e 'redhat\tALL=(ALL)\tNOPASSWD: ALL' >> /etc/sudoers
 
-echo -e 'https://github.com/redhat-et/microshift-config?ref=${uuid}' > /etc/transmission-url
+echo -e 'https://github.com/redhat-et/microshift-config?ref=${subscriptionid}' > /etc/transmission-url
 %end
 
 %post --log=/var/log/anaconda/insights-on-reboot-unit-install.log --interpreter=/usr/bin/bash --erroronfail
