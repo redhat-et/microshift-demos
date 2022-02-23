@@ -47,9 +47,13 @@ sudo cp ${DEMOROOT}/image-builder/rhel-8.json /etc/osbuild-composer/repositories
 sudo cp ${DEMOROOT}/image-builder/rhel-85.json /etc/osbuild-composer/repositories/
 sudo systemctl restart osbuild-composer.service
 
-title "Loading sources"
+title "Loading sources for transmission"
 sudo composer-cli sources delete transmission 2>/dev/null || true
 sudo composer-cli sources add ${DEMOROOT}/image-builder/transmission.toml
+
+title "Loading sources for microshift"
+sudo composer-cli sources delete microshift 2>/dev/null || true
+sudo composer-cli sources add ${DEMOROOT}/image-builder/microshift.toml
 
 title "Loading r4e-microshift blueprint"
 load_blueprint r4e-microshift

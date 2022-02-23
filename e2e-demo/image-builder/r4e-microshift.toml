@@ -90,6 +90,12 @@ version = "*"
 name = "iotop"
 version = "*"
 
+# Microshift
+
+[[packages]]
+name = "microshift"
+version = "*"
+
 
 [customizations]
 [customizations.services]
