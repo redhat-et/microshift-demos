@@ -44,6 +44,7 @@ then
     mkdir -p /etc/osbuild-composer/repositories/
 fi
 sudo cp ${DEMOROOT}/image-builder/rhel-8.json /etc/osbuild-composer/repositories/
+sudo cp ${DEMOROOT}/image-builder/rhel-85.json /etc/osbuild-composer/repositories/
 sudo systemctl restart osbuild-composer.service
 
 title "Loading sources"
@@ -59,13 +60,14 @@ waitfor_image ${UUID}
 download_image ${UUID}
 
 title "Serving r4e-microshift ostree container locally"
-IMAGEID=$(cat ./${UUID}-rhel84-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
+IMAGEID=$(cat ./${UUID}-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
 sudo podman tag ${IMAGEID} localhost/rhel-edge-container
 sudo podman rm -f rhel-edge-container 2>/dev/null || true
-sudo podman run -d --name=rhel-edge-container -p 8080:80 localhost/rhel-edge-container
+sudo podman run -d --name=rhel-edge-container -p 8080:8080 localhost/rhel-edge-container
 
 title "Removing RHOCP and Ansible repos from builder" # builder trips on it
 sudo rm /etc/osbuild-composer/repositories/rhel-8.json
+sudo rm /etc/osbuild-composer/repositories/rhel-85.json
 sudo systemctl restart osbuild-composer.service
 
 title "Loading installer blueprint"
