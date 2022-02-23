@@ -5,6 +5,11 @@ version = "0.0.1"
 modules = []
 groups = []
 
+# Force correct redhat-release
+
+[[packages]]
+name = "redhat-release"
+version = "*"
 
 # MicroShift dependencies
 
