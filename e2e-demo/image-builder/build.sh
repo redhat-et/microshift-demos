@@ -59,7 +59,7 @@ title "Loading r4e-microshift blueprint"
 load_blueprint r4e-microshift
 
 title "Building r4e-microshift ostree container image"
-UUID=$(sudo composer-cli compose start-ostree --ref rhel/8/$(uname -i)/edge r4e-microshift rhel-edge-container | awk '{print $2}')
+UUID=$(sudo composer-cli compose start-ostree --ref rhel/8/$(uname -i)/edge r4e-microshift edge-container | awk '{print $2}')
 waitfor_image ${UUID}
 download_image ${UUID}
 
@@ -78,7 +78,7 @@ title "Loading installer blueprint"
 load_blueprint installer
 
 title "Building installer ISO"
-UUID=$(sudo composer-cli compose start-ostree --ref rhel/8/$(uname -i)/edge --url http://localhost:8080/repo/ installer rhel-edge-installer | awk '{print $2}')
+UUID=$(sudo composer-cli compose start-ostree --ref rhel/8/$(uname -i)/edge --url http://localhost:8080/repo/ installer edge-installer | awk '{print $2}')
 waitfor_image ${UUID}
 download_image ${UUID}
 
