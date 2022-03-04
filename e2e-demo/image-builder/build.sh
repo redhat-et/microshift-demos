@@ -44,35 +44,41 @@ then
     mkdir -p /etc/osbuild-composer/repositories/
 fi
 sudo cp ${DEMOROOT}/image-builder/rhel-8.json /etc/osbuild-composer/repositories/
+sudo cp ${DEMOROOT}/image-builder/rhel-85.json /etc/osbuild-composer/repositories/
 sudo systemctl restart osbuild-composer.service
 
-title "Loading sources"
+title "Loading sources for transmission"
 sudo composer-cli sources delete transmission 2>/dev/null || true
 sudo composer-cli sources add ${DEMOROOT}/image-builder/transmission.toml
+
+title "Loading sources for microshift"
+sudo composer-cli sources delete microshift 2>/dev/null || true
+sudo composer-cli sources add ${DEMOROOT}/image-builder/microshift.toml
 
 title "Loading r4e-microshift blueprint"
 load_blueprint r4e-microshift
 
 title "Building r4e-microshift ostree container image"
-UUID=$(sudo composer-cli compose start-ostree --ref rhel/8/$(uname -i)/edge r4e-microshift rhel-edge-container | awk '{print $2}')
+UUID=$(sudo composer-cli compose start-ostree --ref rhel/8/$(uname -i)/edge r4e-microshift edge-container | awk '{print $2}')
 waitfor_image ${UUID}
 download_image ${UUID}
 
 title "Serving r4e-microshift ostree container locally"
-IMAGEID=$(cat ./${UUID}-rhel84-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
+IMAGEID=$(cat ./${UUID}-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
 sudo podman tag ${IMAGEID} localhost/rhel-edge-container
 sudo podman rm -f rhel-edge-container 2>/dev/null || true
-sudo podman run -d --name=rhel-edge-container -p 8080:80 localhost/rhel-edge-container
+sudo podman run -d --name=rhel-edge-container -p 8080:8080 localhost/rhel-edge-container
 
 title "Removing RHOCP and Ansible repos from builder" # builder trips on it
 sudo rm /etc/osbuild-composer/repositories/rhel-8.json
+sudo rm /etc/osbuild-composer/repositories/rhel-85.json
 sudo systemctl restart osbuild-composer.service
 
 title "Loading installer blueprint"
 load_blueprint installer
 
 title "Building installer ISO"
-UUID=$(sudo composer-cli compose start-ostree --ref rhel/8/$(uname -i)/edge --url http://localhost:8080/repo/ installer rhel-edge-installer | awk '{print $2}')
+UUID=$(sudo composer-cli compose start-ostree --ref rhel/8/$(uname -i)/edge --url http://localhost:8080/repo/ installer edge-installer | awk '{print $2}')
 waitfor_image ${UUID}
 download_image ${UUID}
 
@@ -83,7 +89,7 @@ sudo podman rmi -f ${IMAGEID} 2>/dev/null || true
 title "Embedding kickstart"
 cp ${DEMOROOT}/image-builder/kickstart.ks ${DEMOROOT}/builds/kickstart.ks
 sudo podman run --rm --privileged -ti -v ${DEMOROOT}/builds:/data -v /dev:/dev fedora /bin/bash -c \
-    "dnf -y install lorax; cd /data; mkksiso kickstart.ks ${UUID}-rhel84-boot.iso r4e-microshift-installer.$(uname -i).iso; exit"
+    "dnf -y install lorax; cd /data; mkksiso kickstart.ks ${UUID}-installer.iso r4e-microshift-installer.$(uname -i).iso; exit"
 sudo chown $(whoami). ${DEMOROOT}/builds/r4e-microshift-installer.$(uname -i).iso
 
 title "Done"

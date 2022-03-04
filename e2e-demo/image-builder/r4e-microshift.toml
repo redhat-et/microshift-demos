@@ -5,6 +5,11 @@ version = "0.0.1"
 modules = []
 groups = []
 
+# Force correct redhat-release
+
+[[packages]]
+name = "redhat-release"
+version = "*"
 
 # MicroShift dependencies
 
@@ -83,6 +88,12 @@ version = "*"
 
 [[packages]]
 name = "iotop"
+version = "*"
+
+# Microshift
+
+[[packages]]
+name = "microshift"
 version = "*"
 
 
