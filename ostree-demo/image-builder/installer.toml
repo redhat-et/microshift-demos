@@ -1,0 +1,7 @@
+name = "ostree-demo-installer"
+
+description = ""
+version = "0.0.0"
+modules = []
+groups = []
+packages = []

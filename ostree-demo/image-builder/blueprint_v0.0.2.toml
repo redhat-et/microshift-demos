@@ -1,0 +1,28 @@
+name = "ostree-demo"
+
+description = ""
+version = "0.0.2"
+modules = []
+groups = []
+
+
+# troubleshooting tools
+
+[[packages]]
+name = "iputils"
+version = "*"
+
+[[packages]]
+name = "net-tools"
+version = "*"
+
+[[packages]]
+name = "iotop"
+version = "*"
+
+
+# other
+
+[[packages]]
+name = "redhat-release"
+version = "*"

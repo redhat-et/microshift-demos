@@ -1,0 +1,7 @@
+id = "microshift"
+name = "MicroShift"
+type = "yum-baseurl"
+url = "https://download.copr.fedorainfracloud.org/results/@redhat-et/microshift/epel-8-x86_64/"
+check_gpg = false
+check_ssl = false
+system = false
