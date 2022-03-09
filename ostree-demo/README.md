@@ -240,9 +240,9 @@ You'll also notice a journal entry like
 
     Mar 09 07:45:53 edge transmission[2505790]: 2022-03-09 07:45:53,102 INFO: Running update, URL is https://github.com/redhat-et/microshift-config?ref=89b0aea8-0ec5-e9e0-5644-0cd55b835532.
 
-and on the login prompt on the VM's console you'll find the same URL. This points to the `${GITOPS}` repo you've set up at the very beginning. The device tries to clone that repo, check out the branch with the UUID that represents the device identifier (here: 89b0...), and then roll the conent of that branch into the running file system.
+and on the login prompt on the VM's console you'll find the same URL. This points to the `${GITOPS}` repo you've set up at the very beginning. The Transmission agent on the device tries to clone that repo, check out the branch named after the ${DEVICE_ID} that uniquely identifies your device (here: 89b0...), and then roll the content of that branch into the running file system.
 
-If you have an instance of Red Hat Advanced Cluster Mangager (ACM) running and accessible from your machine via `oc`, then you can clone your GitOps repo, checkout the "ostree-demo" branch and see under `/var/lib/microshift/manifests` manifests for installing the ACM `klusterlet` agent and a `kustomization.yaml` for applying these manifests. What's missing is adding the cluster's name and ACM credentials to the manifests.
+If you have an instance of Red Hat Advanced Cluster Mangagement (ACM) running and accessible from your machine via `oc`, then you can clone your GitOps repo, checkout the "ostree-demo" branch and see under `/var/lib/microshift/manifests` manifests for installing the ACM `klusterlet` agent and a `kustomization.yaml` for applying these manifests. What's missing is adding the cluster's name and ACM credentials to the manifests.
 
 On the machine with ACM access, run:
 
@@ -251,7 +251,7 @@ On the machine with ACM access, run:
     cd ostree-demo-config
     git checkout ostree-demo
     ${demo_dir}/register_cluster.sh "ostree-demo-cluster"
-    git checkout -b ${YOUR_MACHINE_ID}
-    git push origin ${YOUR_MACHINE_ID}
+    git checkout -b ${DEVICE_ID}
+    git push origin ${DEVICE_ID}
 
 A few moments later, you should see your MicroShift cluster registered with ACM, ready to deploy workloads.
