@@ -69,7 +69,7 @@ The downloaded tarball can then be loaded into podman, tagged, and served locall
 
     IMAGE_ID=$(cat ./${BUILD_ID}-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
     sudo podman tag ${IMAGE_ID} localhost/ostree-test:0.0.1
-    sudo podman run -d name=ostree-demo-server -p 8080:8080 localhost/ostree-test:0.0.1
+    sudo podman run -d --name=ostree-demo-server -p 8080:8080 localhost/ostree-test:0.0.1
 
 Check that the web server is running and serving the repo:
 
