@@ -26,3 +26,7 @@ version = "*"
 [[packages]]
 name = "redhat-release"
 version = "*"
+
+[[packages]]
+name = "cockpit"
+version = "*"
