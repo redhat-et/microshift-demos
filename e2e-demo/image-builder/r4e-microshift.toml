@@ -14,14 +14,6 @@ version = "*"
 # MicroShift dependencies
 
 [[packages]]
-name = "cri-o"
-version = "*"
-
-[[packages]]
-name = "cri-tools"
-version = "*"
-
-[[packages]]
 name = "podman"
 version = "*"
 
@@ -32,7 +24,6 @@ version = "*"
 [[packages]]
 name = "conntrack-tools"
 version = "*"
-
 
 # configuration management
 
@@ -96,7 +87,6 @@ version = "*"
 name = "microshift"
 version = "*"
 
-
 [customizations]
 [customizations.services]
-enabled = ["crio", "transmission.timer"]
+enabled = ["crio", "transmission.timer", "microshift"]
