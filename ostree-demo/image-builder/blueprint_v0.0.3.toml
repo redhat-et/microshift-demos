@@ -57,6 +57,9 @@ version = "*"
 name = "redhat-release"
 version = "*"
 
+[[packages]]
+name = "cockpit"
+version = "*"
 
 # customizations
 
