@@ -5,7 +5,7 @@ Note the demo is deliberately low-level, walking through how to build OS images 
 
 ## Preparing the demo
 ### Pre-requisites
-To build the ostrees and installer image, you need a RHEL 8.5 machine registered via `subscription-manager` and attached to a subscription that includes OCP4.8.
+To build the ostrees and installer image, you need a RHEL 8.5 machine registered via `subscription-manager` and attached to a subscription that includes OCP4.8. You can add a trial evaluation for OCP at [Red Hat Customer Portal - Product Downloads](https://access.redhat.com/downloads). Once you register your RHEL installation, run `subscription-manager repos --enable="rhocp-4.8-for-rhel-8-x86_64-rpms"` to add the OCP repo. `appstream-rpms` and `baseos-rpms` are available by default.
 
 Running `sudo subscription-manager repos --list-enabled | grep ID` should yield:
 
@@ -49,7 +49,7 @@ In a terminal, use the `composer-cli` tool to list previously uploaded blueprint
 
     sudo composer-cli blueprints list
     sudo composer-cli blueprints delete ostree-demo
-    sudo composer-cli blueprints push blueprint_v0.0.1.toml
+    sudo composer-cli blueprints push ./image-builder/blueprint_v0.0.1.toml
 
 Start a build of that blueprint into an image of type `edge-container`:
 
@@ -61,15 +61,15 @@ Check the status of the build with
 
     sudo composer-cli compose status
 
-and note its `$BUILD_ID`. Once its status is `FINISHED`, download the `edge-container` image using
+Note the compose build id output and assign it to `$BUILD_ID`. Once its status is `FINISHED`, download the `edge-container` image using
 
     sudo composer-cli compose image ${BUILD_ID}
 
 The downloaded tarball can then be loaded into podman, tagged, and served locally:
 
     IMAGE_ID=$(cat ./${BUILD_ID}-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
-    sudo podman tag ${IMAGE_ID} localhost/ostree-test:0.0.1
-    sudo podman run -d name=ostree-demo-server -p 8080:8080 localhost/ostree-test:0.0.1
+    sudo podman tag ${IMAGE_ID} localhost/ostree-demo:0.0.1
+    sudo podman run -d --name=ostree-demo-server -p 8080:8080 localhost/ostree-demo:0.0.1
 
 Check that the web server is running and serving the repo:
 
@@ -125,7 +125,7 @@ Next, assume the operations team updates the blueprint to add the `iotop` packag
 On the _host system_ run:
 
     IMAGE_ID=$(cat ./builds/ostree-demo-0.0.2-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
-    sudo podman tag ${IMAGE_ID} localhost/ostree-test:0.0.2
+    sudo podman tag ${IMAGE_ID} localhost/ostree-demo:0.0.2
     sudo podman rm -f ostree-demo-server
     sudo podman run -d --name=ostree-demo-server -p 8080:8080 localhost/ostree-demo:0.0.2
 
@@ -205,12 +205,12 @@ Let's retry the upgrade to the broken v0.0.2:
 Watching the VM's console, you'll notice repeated attempts to boot into the updated system with the health check failing each time as `dig` is not present. After the third failed attempt, the system gets rolled back and booted into a "working" state again.
 
 ### Embedding and rolling out MicroShift
-Next, let's add MicroShift to the blueprint (see `./image-builder/blueprint-v0.0.3`) and "publish" the updated ostree repo.
+Next, let's add MicroShift to the blueprint (see `./image-builder/blueprint_v0.0.3.toml`) and "publish" the updated ostree repo.
 
 On the _host system_ run:
 
     IMAGE_ID=$(cat ./builds/ostree-demo-0.0.3-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
-    sudo podman tag ${IMAGE_ID} localhost/ostree-test:0.0.3
+    sudo podman tag ${IMAGE_ID} localhost/ostree-demo:0.0.3
     sudo podman rm -f ostree-demo-server
     sudo podman run -d --name=ostree-demo-server -p 8080:8080 localhost/ostree-demo:0.0.3
 
