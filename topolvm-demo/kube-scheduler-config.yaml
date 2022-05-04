@@ -1,13 +1,15 @@
-[Unit]
-Description=MicroShift
-Wants=network-online.target crio.service
-After=network-online.target crio.service
-
-[Service]
-WorkingDirectory=/usr/local/bin/
-ExecStart=microshift run --kube-scheduler-config /etc/microshift.d/kube-scheduler-config.yaml
-Restart=always
-User=root
-
-[Install]
-WantedBy=multi-user.target
+apiVersion: kubescheduler.config.k8s.io/v1beta2
+kind: KubeSchedulerConfiguration
+leaderElection:
+  leaderElect: true
+clientConnection:
+  kubeconfig: /etc/kubernetes/scheduler.conf
+extenders:
+  - urlPrefix: "http://127.0.0.1:9251"
+    filterVerb: "predicate"
+    prioritizeVerb: "prioritize"
+    nodeCacheCapable: false
+    weight: 100 ## EDIT THIS FIELD ##
+    managedResources:
+      - name: "topolvm.cybozu.com/capacity"
+        ignoredByScheduler: true
