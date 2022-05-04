@@ -1,0 +1,13 @@
+[Unit]
+Description=MicroShift
+Wants=network-online.target crio.service
+After=network-online.target crio.service
+
+[Service]
+WorkingDirectory=/usr/local/bin/
+ExecStart=microshift run --kube-scheduler-config /etc/microshift.d/kube-scheduler-config.yaml
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
