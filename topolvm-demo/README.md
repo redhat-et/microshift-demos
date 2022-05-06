@@ -7,7 +7,7 @@ This demo follows after the [MicroShift ostree demo](../ostree-demo). It is assu
 
 For reference, see the original [TopoLVM on Kubernetes demo](topolvm/topolvm/deploy/README.md)
 
-The manifests in this demo were generated using [Helm](https://helm.sh/). See [TopoLVM helm charts](https://github.com/topolvm/topolvm/tree/main/charts/topolvm).  The following chart values were overridden for this demo:
+The manifests in this demo were generated using [Helm](https://helm.sh/). See [TopoLVM helm charts](https://github.com/topolvm/topolvm/tree/main/charts/topolvm) for Helm instructions.  The following chart values were overridden for this demo:
 
 - cert-manager.enabled=**true**
 - lvmd.deviceClasses[0].volume-group=**vg_root**
@@ -34,26 +34,63 @@ sudo mv ~/microshift.service /etc/systemd/system/'
 Execute ostree-demo step [Embedding and rolling out MicroShift](../ostree-demo/README.md#embedding-and-rolling-out-microshift) to install and start MicroShift.  Allow the instance to reboot and cluster a moment to stabilize before moving on.
 
 ```shell
-ssh $VM_IP 'sudo rpm-ostree upgrade && sudo systemctl reboot'
+ssh redhat@$VM_IP 'sudo rpm-ostree upgrade && sudo systemctl reboot'
 ```
 
 ## Install TopoLVM
 
 Once the cluster node status is Ready and all cluster infra pods have entered the Running state, begin configuring the cluster for TopoLVM.
 
-0. SCP over Kubernetes manifests
+> Reminder: the RHEL for Edge SSH credentials are redhat:redhat
+
+**0. SCP over Kubernetes manifests**
 
 ```shell
-scp ./0_cert-manager.crds.yaml ./1_topolvm-manifests.yaml $VM_IP:~
+scp ./0_cert-manager.crds.yaml ./1_topolvm-manifests.yaml redhat$VM_IP:~
 ```
 
-_Shell into the R4E instance before proceeding._
+**_Shell into the R4E instance before proceeding._**
 
-2. Create the topolvm namespace and apply required resource labels.
+**1. Create the TopoLVM namespace and apply required resource labels.**
 
 ```shell
+sudo -s
 export KUBECONFIG=/var/lib/microshift/resources/kubeadmin/kubeconfig
-sudo oc new-project topolvm-system
-sudo oc label namespace topolvm-system topolvm.cybozu.com/webhook=ignore
-sudo oc label namespace kube-system topolvm.cybozu.com/webhook=ignore
+oc new-project topolvm-system
+oc label namespace topolvm-system topolvm.cybozu.com/webhook=ignore
+oc label namespace kube-system topolvm.cybozu.com/webhook=ignore
+```
+
+> The `topolvm.cybozu.com/webhook=ignore` disables the topolvm-controller mutating webhook, which "adds `capacity.topolvm.cybozu.com/<device-class>` annotation to a pod and `topolvm.cybozu.com/capacity` resource to the first container of a pod." - [TopoLVM Docs](https://github.com/topolvm/topolvm/blob/main/docs/design.md#how-the-scheduler-extension-works)
+
+**2. Deploy TopoLVM**
+
+```shell
+oc apply -f ./0_cert-manager.crd.yaml
+oc apply -f ./1_topolvm-manifests.yaml
+watch -n 1 sudo oc get -n topolvm-system 
+```
+
+Wait for TopoLVM to stabilize.  End the watch with `ctrl-C`.
+
+**3. Deploy the test pod and pvc.**
+
+```shell
+oc project default
+oc create -f example.yaml
+```
+
+**4. Verify the example PVC has been bound, and the LV has been created.**
+
+```shell
+oc get pod,pvc,pv
+lvs
+lvdisplay
+```
+**5. Delete the example PVC and verify the LV has been destroyed.**
+
+```shell
+oc delete -f ./example.yaml
+lvs
+lvdisplay
 ```
