@@ -3,7 +3,18 @@ keyboard us
 timezone UTC
 zerombr
 clearpart --all --initlabel
+
+### Partitioning (default: xfs) ###
+# To enable LVM partitioning, comment out autopart ... --fstype=xfs, uncomment LVM partitioning lines.
 autopart --type=plain --fstype=xfs --nohome
+### LVM partitioning ###
+#part /boot --fstype xfs --ondisk=vda --size=150
+#part swap --recommended --ondisk=vda
+#part pv.01 --ondisk=vda --grow
+#volgroup vg_root pv.01
+#logvol / --vgname=vg_root --size=8192 --name=lv_root
+#### END LVM partitioning ###
+
 reboot
 text
 network --bootproto=dhcp --device=link --activate --onboot=on

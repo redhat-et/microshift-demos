@@ -1,11 +1,15 @@
 # TopoLVM Demo
-This demo walks through steps necessary to install the TopoLVM CSI plugin on top of MicroShift, running in a RHEL for Edge virtual machine.  Included with this demo are Kubernetes manifests derived from the [TopoLVM production deploy demo](topolvm/topolvm/deploy/README.md).
+This demo walks through steps necessary to install the TopoLVM CSI plugin on top of MicroShift, running in a RHEL for Edge virtual machine.  Included with this demo are Kubernetes manifests derived from the [TopoLVM production deploy demo](https://github.com/topolvm/topolvm/tree/main/deploy).
+
+# Required!
+
+LVM partitioning must be enabled in the os-tree demo's [kickstart file](../ostree-demo/image-builder/kickstart.ks).
 
 ## Environment Configuration
 
 This demo follows after the [MicroShift ostree demo](../ostree-demo). It is assumed that a RHEL for Edge guest OS is running and ready to upgrade to a MicroShift rpm-ostree layer (i.e. completed up through step [Provisioning a VM with the ostree, looking around](../ostree-demo#provisioning-a-vm-with-the-ostree-looking-around)). That said, these steps should work for MicroShift deployed to any supported OS.  To initialize a bring-your-own OS environment, see [Microshift documentation](https://microshift.io/docs/getting-started/).  
 
-For reference, see the original [TopoLVM on Kubernetes demo](topolvm/topolvm/deploy/README.md)
+For reference, see the original [TopoLVM on Kubernetes demo](https://github.com/topolvm/topolvm/tree/main/deploy)
 
 The manifests in this demo were generated using [Helm](https://helm.sh/). See [TopoLVM helm charts](https://github.com/topolvm/topolvm/tree/main/charts/topolvm) for Helm instructions.  The following chart values were overridden for this demo:
 
