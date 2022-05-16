@@ -5,7 +5,7 @@ Note the demo is deliberately low-level, walking through how to build OS images 
 
 ## Preparing the demo
 ### Pre-requisites
-To build the ostrees and installer image, you need a RHEL 8.5 machine registered via `subscription-manager` and attached to a subscription that includes OCP4.8. You can add a trial evaluation for OCP at [Red Hat Customer Portal - Product Downloads](https://access.redhat.com/downloads). Once you register your RHEL installation, run `subscription-manager repos --enable="rhocp-4.8-for-rhel-8-x86_64-rpms"` to add the OCP repo. `appstream-rpms` and `baseos-rpms` are available by default.
+To build the ostrees and installer image, you need a RHEL 8.6 machine registered via `subscription-manager` and attached to a subscription that includes OCP4.8. You can add a trial evaluation for OCP at [Red Hat Customer Portal - Product Downloads](https://access.redhat.com/downloads). Once you register your RHEL installation, run `subscription-manager repos --enable="rhocp-4.8-for-rhel-8-x86_64-rpms"` to add the OCP repo. `appstream-rpms` and `baseos-rpms` are available by default.
 
 Running `sudo subscription-manager repos --list-enabled | grep ID` should yield:
 
@@ -106,7 +106,7 @@ You'll get an output that looks somewhat like this:
     State: idle
     Deployments:
     ● ostree://edge:rhel/8/x86_64/edge
-                    Version: 8.5 (2022-03-02T21:18:55Z)
+                    Version: 8.6 (2022-03-02T21:18:55Z)
                         Commit: 09f7284d4d0045e2529fea8730eb11161b2544ec6a796671e26f5f402699d332
 
 This means the system has downloaded commit 09f7... from the remote ostree repo "edge" at ref "rhel/8/x86_64/edge" and has booted into it (marked by the ● ).

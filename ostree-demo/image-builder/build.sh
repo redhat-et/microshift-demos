@@ -82,7 +82,7 @@ pushd ${DEMOROOT}/builds &>/dev/null
 title "Adding RHOCP and Ansible repos to builder"
 mkdir -p /etc/osbuild-composer/repositories/
 sudo cp ${DEMOROOT}/image-builder/rhel-8.json /etc/osbuild-composer/repositories/
-sudo cp ${DEMOROOT}/image-builder/rhel-85.json /etc/osbuild-composer/repositories/
+sudo cp ${DEMOROOT}/image-builder/rhel-86.json /etc/osbuild-composer/repositories/
 sudo systemctl restart osbuild-composer.service
 
 title "Loading sources for transmission"
@@ -100,7 +100,7 @@ build_image blueprint_v0.0.3.toml "${DEMONAME}" 0.0.3 edge-container "${DEMONAME
 
 title "Removing RHOCP and Ansible repos from builder" # builder trips on it
 sudo rm /etc/osbuild-composer/repositories/rhel-8.json
-sudo rm /etc/osbuild-composer/repositories/rhel-85.json
+sudo rm /etc/osbuild-composer/repositories/rhel-86.json
 sudo systemctl restart osbuild-composer.service
 
 build_image installer.toml "${DEMONAME}-installer" 0.0.0 edge-installer "${DEMONAME}" 0.0.1
