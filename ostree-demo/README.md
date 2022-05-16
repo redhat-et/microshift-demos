@@ -25,11 +25,7 @@ Fork the demo's GitOps repo <https://github.com/redhat-et/microshift-config> int
 
     GITOPS_REPO="https://github.com/MY_ORG/microshift-config"
 
-<<<<<<< HEAD
 Set `UPGRADE_SERVER_IP` to the IP address of the current host:
-=======
-Identify the IP of the network router IP of the RHEL 4 Edge instance.  This is probably something like `192.168.<SUBNET>.1`.  This is required to enable the rpm-ostree utility to route to the rpm-ostree server running on the host.
->>>>>>> 4cecdd2 (update README)
 
     export UPGRADE_SERVER_IP=192.168.122.67
 
