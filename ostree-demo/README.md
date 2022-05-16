@@ -22,6 +22,10 @@ Fork the demo's GitOps repo https://github.com/redhat-et/microshift-config into 
 
     GITOPS_REPO="https://github.com/MY_ORG/microshift-config"
 
+Set `UPGRADE_SERVER_IP` to the IP address of the current host:
+
+    export UPGRADE_SERVER_IP=192.168.122.67
+
 ### Building the ostrees and installer image
 Run the following to prepare for building the RHEL4Edge installer ISO containing the necessary MicroShift dependencies:
 
@@ -29,7 +33,7 @@ Run the following to prepare for building the RHEL4Edge installer ISO containing
 
 Update the kickstart file to point to your forked GitOps repo and build the ostree and installer images:
 
-    sed -i "s|https://github.com/redhat-et/microshift-config|${GITOPS_REPO}|" ./image-builder/kickstart.ks
+    ./image_builder/customize.sh
     sudo ./image-builder/build.sh
 
 If all goes well, you should find the following files in `./builds`
