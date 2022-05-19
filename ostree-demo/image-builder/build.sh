@@ -92,11 +92,14 @@ sudo composer-cli sources add ${DEMOROOT}/image-builder/transmission.toml
 title "Loading sources for microshift"
 sudo composer-cli sources delete microshift 2>/dev/null || true
 sudo composer-cli sources add ${DEMOROOT}/image-builder/microshift.toml
+sudo composer-cli sources delete microshift-containers 2>/dev/null || true
+sudo composer-cli sources add ${DEMOROOT}/image-builder/microshift-containers.toml
+sudo composer-cli sources delete microshift-hello-world 2>/dev/null || true
+sudo composer-cli sources add ${DEMOROOT}/image-builder/microshift-hello-world.toml
 
 build_image blueprint_v0.0.1.toml "${DEMONAME}" 0.0.1 edge-container
 build_image blueprint_v0.0.2.toml "${DEMONAME}" 0.0.2 edge-container "${DEMONAME}" 0.0.1
 build_image blueprint_v0.0.3.toml "${DEMONAME}" 0.0.3 edge-container "${DEMONAME}" 0.0.2
-
 
 title "Removing RHOCP and Ansible repos from builder" # builder trips on it
 sudo rm /etc/osbuild-composer/repositories/rhel-8.json
@@ -109,11 +112,11 @@ title "Embedding kickstart"
 cp "${DEMOROOT}/image-builder/kickstart.ks" "${DEMOROOT}/builds/kickstart.ks"
 sudo podman run --rm --privileged -ti -v "${DEMOROOT}/builds":/data -v /dev:/dev fedora /bin/bash -c \
     "dnf -y install lorax; cd /data; mkksiso kickstart.ks ${DEMONAME}-installer-0.0.0-installer.iso ${DEMONAME}-installer.$(uname -i).iso; exit"
-sudo chown $(whoami). "${DEMOROOT}/builds/${DEMONAME}-installer.$(uname -i).iso"
 
 title "Cleaning up local ostree container serving"
 sudo podman rm -f ${DEMONAME}-server 2>/dev/null || true
 
+sudo chown $(whoami). "${DEMOROOT}/builds/"*
 
 title "Done"
 popd &>/dev/null

@@ -13,22 +13,19 @@ name = "microshift"
 version = "*"
 
 [[packages]]
-name = "conntrack-tools"
+name = "microshift-containers"
+version = "*"
+
+[[packages]]
+name = "microshift-hello-world"
+version = "*"
+
+[[packages]]
+name = "microshift-hello-world-manifests"
 version = "*"
 
 [[packages]]
 name = "openshift-clients"
-version = "*"
-
-
-# configuration management
-
-[[packages]]
-name = "transmission-agent"
-version = "0.1.6"
-
-[[packages]]
-name = "git"
 version = "*"
 
 
@@ -46,10 +43,6 @@ version = "*"
 name = "net-tools"
 version = "*"
 
-[[packages]]
-name = "iotop"
-version = "*"
-
 
 # other
 
@@ -63,4 +56,4 @@ version = "*"
 [customizations]
 
 [customizations.services]
-enabled = ["crio", "transmission.timer", "microshift"]
+enabled = ["crio", "microshift"]
