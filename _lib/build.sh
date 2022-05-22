@@ -3,11 +3,12 @@
 set -e -o pipefail
 #trap 'echo "# $BASH_COMMAND"' DEBUG
 
-DEMONAME=ostree-demo
-DEMOROOT=$(git rev-parse --show-toplevel)/${DEMONAME}
+REPOROOT="$(git rev-parse --show-toplevel)"
+DEMONAME="$(basename $(pwd))"
+DEMOROOT="${REPOROOT}/${DEMONAME}"
 
 title() {
-    echo -e "\E[34m\n# $1\E[00m";
+    echo -e "\E[34m# $1\E[00m";
 }
 
 load_blueprint() {
@@ -15,9 +16,9 @@ load_blueprint() {
     local file=$2
 
     sudo composer-cli blueprints delete ${name} 2>/dev/null || true
-    sudo composer-cli blueprints push "${DEMOROOT}/image-builder/${file}"
+    sudo composer-cli blueprints push "${DEMOROOT}/blueprints/${file}"
     sudo composer-cli blueprints depsolve ${name}
-}  
+}
 
 waitfor_image() {
     local uuid=$1
@@ -71,6 +72,7 @@ build_image() {
 
     waitfor_image ${buildid}
     download_image ${buildid}
+    sudo chown $(whoami). "${buildid}"*.{tar,iso} 2>/dev/null || true
     rename ${buildid} ${blueprint}-${version} ${buildid}*.{tar,iso} 2>/dev/null || true
 }
 
@@ -78,42 +80,65 @@ build_image() {
 mkdir -p ${DEMOROOT}/builds
 pushd ${DEMOROOT}/builds &>/dev/null
 
-
-title "Adding RHOCP and Ansible repos to builder"
+title "Adding extra RPM repos to host"
 mkdir -p /etc/osbuild-composer/repositories/
-sudo cp ${DEMOROOT}/image-builder/rhel-8.json /etc/osbuild-composer/repositories/
-sudo cp ${DEMOROOT}/image-builder/rhel-86.json /etc/osbuild-composer/repositories/
+sudo cp ${REPOROOT}/_lib/sources/rhel-8.json /etc/osbuild-composer/repositories/
+sudo cp ${REPOROOT}/_lib/sources/rhel-86.json /etc/osbuild-composer/repositories/
 sudo systemctl restart osbuild-composer.service
 
-title "Loading sources for transmission"
-sudo composer-cli sources delete transmission 2>/dev/null || true
-sudo composer-cli sources add ${DEMOROOT}/image-builder/transmission.toml
+for source in "${DEMOROOT}"/sources/*.toml; do
+    id="$(grep -Po '^\s?id\s?=\s?"\K[^"]+' "${source}" | head -n 1)"
+    title "Adding source '${id}' to builder"
+    sudo composer-cli sources delete "${id}" 2>/dev/null || true
+    sudo composer-cli sources add "${source}"
+done
 
-title "Loading sources for microshift"
-sudo composer-cli sources delete microshift 2>/dev/null || true
-sudo composer-cli sources add ${DEMOROOT}/image-builder/microshift.toml
+# Build images from blueprints in alphabetical order of file names.
+# Assumes files are named following the pattern "${SOME_NAME}_v${SOME_VERSION}.toml".
+# Assumes blueprint N is the parent of blueprint N+1.
+parent_version=""
+for blueprint in "${DEMOROOT}"/blueprints/*.toml; do
+    filename="$(basename ${blueprint})"
+    if [ "${filename}" == installer.toml ]; then continue; fi
 
-build_image blueprint_v0.0.1.toml "${DEMONAME}" 0.0.1 edge-container
-build_image blueprint_v0.0.2.toml "${DEMONAME}" 0.0.2 edge-container "${DEMONAME}" 0.0.1
-build_image blueprint_v0.0.3.toml "${DEMONAME}" 0.0.3 edge-container "${DEMONAME}" 0.0.2
+    version="$(echo "${filename}" | grep -Po '_v\K(.*)(?=\.toml)')"
+    if [ ! -f "${DEMOROOT}/builds/${DEMONAME}-${version}-container.tar" ]; then
+        if [ -z "${parent_version}" ]; then
+            build_image "${filename}" "${DEMONAME}" "${version}" edge-container
+        else
+            build_image "${filename}" "${DEMONAME}" "${version}" edge-container "${DEMONAME}" "${parent_version}"
+        fi
+    else
+        title "Skipping build of ${DEMONAME} v${version}"
+    fi
+    parent_version="${version}"
+done
 
-
-title "Removing RHOCP and Ansible repos from builder" # builder trips on it
-sudo rm /etc/osbuild-composer/repositories/rhel-8.json
-sudo rm /etc/osbuild-composer/repositories/rhel-86.json
+title "Removing extra RPM repos from host" # builder trips on it
+sudo rm -f /etc/osbuild-composer/repositories/rhel-8.json
+sudo rm -f /etc/osbuild-composer/repositories/rhel-86.json
 sudo systemctl restart osbuild-composer.service
 
-build_image installer.toml "${DEMONAME}-installer" 0.0.0 edge-installer "${DEMONAME}" 0.0.1
+# Build the installer ISO if it doesn't exist yet
+if [ ! -f "${DEMOROOT}/builds/installer-0.0.0-installer.iso" ]; then
+    build_image installer.toml "installer" 0.0.0 edge-installer "${DEMONAME}" 0.0.1
+else
+    title "Skipping build of installer"
+fi
 
-title "Embedding kickstart"
-cp "${DEMOROOT}/image-builder/kickstart.ks" "${DEMOROOT}/builds/kickstart.ks"
-sudo podman run --rm --privileged -ti -v "${DEMOROOT}/builds":/data -v /dev:/dev fedora /bin/bash -c \
-    "dnf -y install lorax; cd /data; mkksiso kickstart.ks ${DEMONAME}-installer-0.0.0-installer.iso ${DEMONAME}-installer.$(uname -i).iso; exit"
-sudo chown $(whoami). "${DEMOROOT}/builds/${DEMONAME}-installer.$(uname -i).iso"
+# Embed the kickstart into the installer ISO if there's no ISO containing it yet
+if [ ! -f "${DEMOROOT}/builds/installer.$(uname -i).iso" ]; then
+    title "Embedding kickstart"
+    cp "${DEMOROOT}/blueprints/kickstart.ks" "${DEMOROOT}/builds/kickstart.ks"
+    sudo podman run --rm --privileged -ti -v "${DEMOROOT}/builds":/data -v /dev:/dev fedora /bin/bash -c \
+        "dnf -y install lorax; cd /data; mkksiso kickstart.ks installer-0.0.0-installer.iso ${DEMONAME}-installer.$(uname -i).iso; exit"
+    sudo chown $(whoami). "${DEMOROOT}/builds/${DEMONAME}-installer.$(uname -i).iso"
+else
+    title "Skipping embedding of kickstart"
+fi
 
 title "Cleaning up local ostree container serving"
 sudo podman rm -f ${DEMONAME}-server 2>/dev/null || true
-
 
 title "Done"
 popd &>/dev/null

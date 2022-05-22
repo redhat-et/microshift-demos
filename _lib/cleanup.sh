@@ -2,7 +2,9 @@
 
 set -e -o pipefail
 
-DEMOROOT=$(git rev-parse --show-toplevel)/e2e-demo
+REPOROOT="$(git rev-parse --show-toplevel)"
+DEMONAME="$(basename $(pwd))"
+DEMOROOT="${REPOROOT}/${DEMONAME}"
 
 sudo rm -f ${DEMOROOT}/builds/*
 
