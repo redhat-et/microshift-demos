@@ -1,10 +1,13 @@
 # OSTree Demo
+
 This demo introduces core technologies of RHEL for Edge, such as ImageBuilder, rpm-ostree, and greenboot. It then shows how to embed MicroShift into an ostree and deploy it.
 
 Note the demo is deliberately low-level, walking through how to build OS images from the command line using the `composer-cli` tool, as this is what one would use to automate a GitOps pipeline for OS images. For building images graphically use the [web console](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html-single/composing_installing_and_managing_rhel_for_edge_images/index#creating-a-blueprint-for-rhel-for-edge-images-using-web-console_composing-rhel-for-edge-images-using-image-builder-in-rhel-web-console) instead. For a full GitOps automation, see the [RHEL for Edge Automation Framework](https://github.com/redhat-cop/rhel-edge-automation-arch).
 
 ## Preparing the demo
+
 ### Pre-requisites
+
 To build the ostrees and installer image, you need a RHEL 8.6 machine registered via `subscription-manager` and attached to a subscription that includes OCP4.8. You can add a trial evaluation for OCP at [Red Hat Customer Portal - Product Downloads](https://access.redhat.com/downloads). Once you register your RHEL installation, run `subscription-manager repos --enable="rhocp-4.8-for-rhel-8-x86_64-rpms"` to add the OCP repo. `appstream-rpms` and `baseos-rpms` are available by default.
 
 Running `sudo subscription-manager repos --list-enabled | grep ID` should yield:
@@ -18,7 +21,7 @@ Install `git` if not yet installed and clone the demo repo:
     git clone https://github.com/redhat-et/microshift-demos.git
     cd microshift-demos/ostree-demo
 
-Fork the demo's GitOps repo https://github.com/redhat-et/microshift-config into your own org and define the `GITOPS_REPO` environment variable accordingly:
+Fork the demo's GitOps repo <https://github.com/redhat-et/microshift-config> into your own org and define the `GITOPS_REPO` environment variable accordingly:
 
     GITOPS_REPO="https://github.com/MY_ORG/microshift-config"
 
@@ -27,14 +30,15 @@ Set `UPGRADE_SERVER_IP` to the IP address of the current host:
     export UPGRADE_SERVER_IP=192.168.122.67
 
 ### Building the ostrees and installer image
+
 Run the following to prepare for building the RHEL4Edge installer ISO containing the necessary MicroShift dependencies:
 
-    sudo ./image-builder/prepare_builder.sh
+    ./prepare_builder.sh
 
 Update the kickstart file to point to your forked GitOps repo and build the ostree and installer images:
 
-    ./image_builder/customize.sh
-    sudo ./image-builder/build.sh
+    ./customize.sh
+    ./build.sh
 
 If all goes well, you should find the following files in `./builds`
 
@@ -46,14 +50,16 @@ If all goes well, you should find the following files in `./builds`
     ostree-demo-installer.x86_64.iso
 
 ## Running the demo
+
 ### Creating a first blueprint, building&serving an ostree
-Have a look at `./image-builder/blueprint_v0.0.1.toml`, which defines a blueprint named `ostree-demo` that adds a few RPM packages for facilitating network troubleshooting to a base RHEL for Edge system, for example `arp`.
+
+Have a look at `./blueprints/blueprint_v0.0.1.toml`, which defines a blueprint named `ostree-demo` that adds a few RPM packages for facilitating network troubleshooting to a base RHEL for Edge system, for example `arp`.
 
 In a terminal, use the `composer-cli` tool to list previously uploaded blueprints, delete any existing `ostree-demo` blueprint, and upload the v0.0.1 blueprint:
 
     sudo composer-cli blueprints list
     sudo composer-cli blueprints delete ostree-demo
-    sudo composer-cli blueprints push ./image-builder/blueprint_v0.0.1.toml
+    sudo composer-cli blueprints push ./blueprints/blueprint_v0.0.1.toml
 
 Start a build of that blueprint into an image of type `edge-container`:
 
@@ -85,11 +91,12 @@ If you want, check what the ostree repo looks like:
     ls -l /usr/share/nginx/html
 
 ### Provisioning a VM with the ostree, looking around
+
 Use your favorite virtualization solution to create a VM installed using the `./builds/ostree-demo-installer.x86_64.iso`. For example, to use `libvirt`, run
 
-    ./device-provision/prepare_virt.sh
+    ./prepare_virthost.sh
     sudo cp ./builds/ostree-demo-installer.x86_64.iso /var/lib/libvirt/images
-    ./device-provision/provision.sh
+    ./provision.sh
 
 Note the VM must be able to reach the web server you're running on Podman.
 
@@ -124,7 +131,8 @@ You can also check whether new updates are available, which is currently not the
     sudo rpm-ostree upgrade --check
 
 ### Updating the blueprint, updating and rolling back the device
-Next, assume the operations team updates the blueprint to add the `iotop` package (see `./image-builder/blueprint_v0.0.2`), builds the updated ostree (`./builds/ostree-demo-0.0.2-container.tar`) and publishes it.
+
+Next, assume the operations team updates the blueprint to add the `iotop` package (see `./blueprints/blueprint_v0.0.2`), builds the updated ostree (`./builds/ostree-demo-0.0.2-container.tar`) and publishes it.
 
 On the _host system_ run:
 
@@ -171,6 +179,7 @@ It just takes seconds until you can SSH back into the VM and verify the system h
 Again this just takes seconds. Verify the system is on the original ostree and has `dig` availble again.
 
 ### Rolling back automatically using greenboot
+
 RHEL for Edge provides the `greenboot` tool that will run user-defined health checks and automatically roll back the a system update if those checks fail during multiple attempts. Let's add a check that fails when `dig` is not present on the system:
 
     sudo tee /etc/greenboot/check/required.d/01_check_deps.sh > /dev/null <<'EOF'
@@ -209,7 +218,8 @@ Let's retry the upgrade to the broken v0.0.2:
 Watching the VM's console, you'll notice repeated attempts to boot into the updated system with the health check failing each time as `dig` is not present. After the third failed attempt, the system gets rolled back and booted into a "working" state again.
 
 ### Embedding and rolling out MicroShift
-Next, let's add MicroShift to the blueprint (see `./image-builder/blueprint_v0.0.3.toml`) and "publish" the updated ostree repo.
+
+Next, let's add MicroShift to the blueprint (see `./blueprints/blueprint_v0.0.3.toml`) and "publish" the updated ostree repo.
 
 On the _host system_ run:
 
@@ -234,6 +244,7 @@ After a minute or so, you should be able to see the cluster running:
     oc get all -A
 
 ### Deploying workloads, connecting to Advanced Cluster Manager
+
 For security reasons, production systems should not allow remote access via SSH or Kube API (e.g. `kubectl` or `oc`). Instead, you should use a device management agent of your choice to pull updates from your management system and apply them locally, for example to drop your workload's manifests into `/var/lib/microshift/manifests` and restart the MicroShift service.
 
 For this demo, we'll use [Transmission](https://github.com/redhat-et/transmission) agent as lightweight way of configuring the devices using GitOps. Note the blueprint v0.0.3 already added this agent. On the VM, check that Transmission service is running:
