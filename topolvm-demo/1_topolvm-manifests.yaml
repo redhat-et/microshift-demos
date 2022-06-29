@@ -1,4 +1,11 @@
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: topolvm-system
+  labels:
+    topolvm.cybozu.com/webhook: ignore
+---
 # Source: crds/topolvm.cybozu.com_logicalvolumes.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -75,131 +82,6 @@ spec:
         status: {}
 
 ---
-# Source: topolvm/templates/lvmd/psp.yaml
-apiVersion: policy/v1beta1
-kind: PodSecurityPolicy
-metadata:
-  name: topolvm-lvmd
-  labels:
-    helm.sh/chart: topolvm-5.0.0
-    app.kubernetes.io/name: topolvm
-    app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
-    app.kubernetes.io/managed-by: Helm
-spec:
-  privileged: true
-  hostPID: true
-  volumes:
-    - 'configMap'
-    - 'emptyDir'
-    - 'hostPath'
-    - 'secret'
-  allowedHostPaths:
-    - pathPrefix: /run/topolvm
-      readOnly: false
-  runAsUser:
-    rule: 'RunAsAny'
-  seLinux:
-    rule: 'RunAsAny'
-  supplementalGroups:
-    rule: 'RunAsAny'
-  fsGroup:
-    rule: 'RunAsAny'
----
-# Source: topolvm/templates/node/psp.yaml
-apiVersion: policy/v1beta1
-kind: PodSecurityPolicy
-metadata:
-  name: topolvm-node
-  labels:
-    helm.sh/chart: topolvm-5.0.0
-    app.kubernetes.io/name: topolvm
-    app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
-    app.kubernetes.io/managed-by: Helm
-spec:
-  privileged: true
-  allowPrivilegeEscalation: true
-  volumes:
-    - 'configMap'
-    - 'emptyDir'
-    - 'secret'
-    - 'hostPath'
-  allowedHostPaths:
-    - pathPrefix: /var/lib/kubelet
-      readOnly: false
-    - pathPrefix: /run/topolvm
-      readOnly: false
-  hostNetwork: false
-  runAsUser:
-    rule: 'RunAsAny'
-  seLinux:
-    rule: 'RunAsAny'
-  supplementalGroups:
-    rule: 'RunAsAny'
-  fsGroup:
-    rule: 'RunAsAny'
-  readOnlyRootFilesystem: true
----
-# Source: topolvm/templates/scheduler/psp.yaml
-apiVersion: policy/v1beta1
-kind: PodSecurityPolicy
-metadata:
-  name: topolvm-scheduler
-  labels:
-    helm.sh/chart: topolvm-5.0.0
-    app.kubernetes.io/name: topolvm
-    app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
-    app.kubernetes.io/managed-by: Helm
-spec:
-  privileged: false
-  allowPrivilegeEscalation: false
-  volumes:
-    - 'configMap'
-    - 'emptyDir'
-    - 'secret'
-  hostNetwork: true
-  runAsUser:
-    rule: 'MustRunAsNonRoot'
-  seLinux:
-    rule: 'RunAsAny'
-  supplementalGroups:
-    rule: 'MustRunAs'
-    ranges:
-      - min: 1
-        max: 65535
-  fsGroup:
-    rule: 'MayRunAs'
-    ranges:
-      - min: 1
-        max: 65535
-  readOnlyRootFilesystem: true
----
-# Source: topolvm/templates/controller/poddisruptionbudget.yaml
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: topolvm-controller
-  namespace: topolvm-system
-spec:
-  maxUnavailable: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: topolvm-controller
----
-# Source: topolvm/templates/scheduler/poddisruptionbudget.yaml
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: topolvm-scheduler
-  namespace: topolvm-system
-spec:
-  maxUnavailable: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: topolvm-scheduler
----
 # Source: topolvm/charts/cert-manager/templates/cainjector-serviceaccount.yaml
 apiVersion: v1
 kind: ServiceAccount
@@ -255,10 +137,10 @@ metadata:
   name: topolvm-controller
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 ---
 # Source: topolvm/templates/lvmd/serviceaccount.yaml
@@ -268,10 +150,10 @@ metadata:
   name: topolvm-lvmd
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 ---
 # Source: topolvm/templates/node/serviceaccount.yaml
@@ -281,23 +163,10 @@ metadata:
   name: topolvm-node
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
-    app.kubernetes.io/managed-by: Helm
----
-# Source: topolvm/templates/scheduler/serviceaccount.yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: topolvm-scheduler
-  namespace: topolvm-system
-  labels:
-    helm.sh/chart: topolvm-5.0.0
-    app.kubernetes.io/name: topolvm
-    app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 ---
 # Source: topolvm/charts/cert-manager/templates/webhook-config.yaml
@@ -321,34 +190,19 @@ metadata:
   namespace: topolvm-system
   labels:
     idx: "0"
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 data:
   lvmd.yaml: |
     socket-name: /run/topolvm/lvmd.sock
     device-classes: 
-      - spare-gb: 9
-        volume-group: vg_root
----
-# Source: topolvm/templates/scheduler/configmap.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: topolvm-scheduler-options
-  namespace: topolvm-system
-  labels:
-    helm.sh/chart: topolvm-5.0.0
-    app.kubernetes.io/name: topolvm
-    app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
-    app.kubernetes.io/managed-by: Helm
-data:
-  scheduler-options.yaml: |
-    listen: "localhost:9251"
-    default-divisor: 1
+      - default: true
+        name: ssd
+        spare-gb: 2
+        volume-group: rhel 
 ---
 # Source: topolvm/templates/storageclass.yaml
 apiVersion: storage.k8s.io/v1
@@ -356,15 +210,16 @@ kind: StorageClass
 metadata:
   name: topolvm-provisioner
   annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 provisioner: topolvm.cybozu.com
 parameters:
-  "csi.storage.k8s.io/fstype": "xfs"
+  "csi.storage.k8s.io/fstype": "ext4"
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
 ---
@@ -761,10 +616,10 @@ kind: ClusterRole
 metadata:
   name: topolvm-system:controller
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 rules:
   - apiGroups: [""]
@@ -789,10 +644,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: topolvm-external-provisioner-runner
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 rules:
   - apiGroups: [""]
@@ -829,10 +684,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: topolvm-external-resizer-runner
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 rules:
   - apiGroups: [""]
@@ -857,10 +712,10 @@ kind: ClusterRole
 metadata:
   name: topolvm-system:node
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 rules:
   - apiGroups: [""]
@@ -872,10 +727,6 @@ rules:
   - apiGroups: ["storage.k8s.io"]
     resources: ["csidrivers"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: ["policy"]
-    resources: ["podsecuritypolicies"]
-    verbs: ["use"]
-    resourceNames: ["topolvm-node"]
 ---
 # Source: topolvm/charts/cert-manager/templates/cainjector-rbac.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1104,10 +955,10 @@ kind: ClusterRoleBinding
 metadata:
   name: topolvm-system:controller
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 subjects:
   - kind: ServiceAccount
@@ -1124,10 +975,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: topolvm-csi-provisioner-role
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 subjects:
   - kind: ServiceAccount
@@ -1144,10 +995,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: topolvm-csi-resizer-role
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 subjects:
   - kind: ServiceAccount
@@ -1164,10 +1015,10 @@ kind: ClusterRoleBinding
 metadata:
   name: topolvm-system:node
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 subjects:
   - kind: ServiceAccount
@@ -1279,10 +1130,10 @@ metadata:
   name: leader-election
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 rules:
   - apiGroups: ["", "coordination.k8s.io"]
@@ -1299,10 +1150,10 @@ metadata:
   name: external-provisioner-cfg
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 rules:
   # Only one of the following rules for endpoints or leases is required based on
@@ -1336,51 +1187,15 @@ metadata:
   name: external-resizer-cfg
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "watch", "list", "delete", "update", "create"]
----
-# Source: topolvm/templates/lvmd/role.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: psp:topolvm-lvmd
-  namespace: topolvm-system
-  labels:
-    helm.sh/chart: topolvm-5.0.0
-    app.kubernetes.io/name: topolvm
-    app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
-    app.kubernetes.io/managed-by: Helm
-rules:
-  - apiGroups: ["policy"]
-    resources: ["podsecuritypolicies"]
-    verbs: ["use"]
-    resourceNames: ["topolvm-lvmd"]
----
-# Source: topolvm/templates/scheduler/role.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: psp:topolvm-scheduler
-  namespace: topolvm-system
-  labels:
-    helm.sh/chart: topolvm-5.0.0
-    app.kubernetes.io/name: topolvm
-    app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
-    app.kubernetes.io/managed-by: Helm
-rules:
-  - apiGroups: ["policy"]
-    resources: ["podsecuritypolicies"]
-    verbs: ["use"]
-    resourceNames: ["topolvm-scheduler"]
 ---
 # Source: topolvm/charts/cert-manager/templates/cainjector-rbac.yaml
 # grant cert-manager permission to manage the leaderelection configmap in the
@@ -1464,10 +1279,10 @@ metadata:
   name: leader-election
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 subjects:
   - kind: ServiceAccount
@@ -1485,10 +1300,10 @@ metadata:
   name: csi-provisioner-role-cfg
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 subjects:
   - kind: ServiceAccount
@@ -1506,10 +1321,10 @@ metadata:
   name: csi-resizer-role-cfg
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 subjects:
   - kind: ServiceAccount
@@ -1519,48 +1334,6 @@ roleRef:
   kind: Role
   name: external-resizer-cfg
   apiGroup: rbac.authorization.k8s.io
----
-# Source: topolvm/templates/lvmd/rolebinding.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: topolvm-lvmd:psp:topolvm-lvmd
-  namespace: topolvm-system
-  labels:
-    helm.sh/chart: topolvm-5.0.0
-    app.kubernetes.io/name: topolvm
-    app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
-    app.kubernetes.io/managed-by: Helm
-subjects:
-  - kind: ServiceAccount
-    name: topolvm-lvmd
-    namespace: topolvm-system
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: psp:topolvm-lvmd
----
-# Source: topolvm/templates/scheduler/rolebinding.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: topolvm-scheduler:psp:topolvm-scheduler
-  namespace: topolvm-system
-  labels:
-    helm.sh/chart: topolvm-5.0.0
-    app.kubernetes.io/name: topolvm
-    app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
-    app.kubernetes.io/managed-by: Helm
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: psp:topolvm-scheduler
-subjects:
-  - kind: ServiceAccount
-    namespace: topolvm-system
-    name: topolvm-scheduler
 ---
 # Source: topolvm/charts/cert-manager/templates/service.yaml
 apiVersion: v1
@@ -1621,14 +1394,17 @@ metadata:
   name: topolvm-controller
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   selector:
-    app.kubernetes.io/name: topolvm-controller
+    app.kubernetes.io/component: controller
+    
+    app.kubernetes.io/name: topolvm
+    app.kubernetes.io/instance: topolvm
   ports:
     - name: webhook
       port: 443
@@ -1643,30 +1419,36 @@ metadata:
   namespace: topolvm-system
   labels:
     idx: "0"
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   selector:
     matchLabels:
       idx: "0"
-      app.kubernetes.io/name: topolvm-lvmd
+      app.kubernetes.io/component: lvmd
+      
+      app.kubernetes.io/name: topolvm
+      app.kubernetes.io/instance: topolvm
   template:
     metadata:
       labels:
         idx: "0"
-        app.kubernetes.io/name: topolvm-lvmd
+        app.kubernetes.io/component: lvmd
+        
+        app.kubernetes.io/name: topolvm
+        app.kubernetes.io/instance: topolvm
       annotations:
-        checksum/config: 98569cf22ab6232f77ec42d379df25778ce4b0fb98902cc02fb7beaf735eed80
+        checksum/config: 92d04998da464e907543a2f5693d7b3dabeb771bccb093c6f5a61e61fb731d5c
         prometheus.io/port: metrics
     spec:
       serviceAccountName: topolvm-lvmd
       hostPID: true
       containers:
         - name: lvmd
-          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.11.0"
+          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.12.0"
           securityContext:
             privileged: true
           command:
@@ -1693,26 +1475,32 @@ metadata:
   name: topolvm-node
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: topolvm-node
+      app.kubernetes.io/component: node
+      
+      app.kubernetes.io/name: topolvm
+      app.kubernetes.io/instance: topolvm
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: topolvm-node
+        app.kubernetes.io/component: node
+        
+        app.kubernetes.io/name: topolvm
+        app.kubernetes.io/instance: topolvm
       annotations: 
         prometheus.io/port: metrics
     spec:
       serviceAccountName: topolvm-node
       containers:
         - name: topolvm-node
-          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.11.0"
+          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.12.0"
           securityContext: 
             privileged: true
           command:
@@ -1752,7 +1540,7 @@ spec:
               mountPropagation: "Bidirectional"
 
         - name: csi-registrar
-          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.11.0"
+          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.12.0"
           command:
             - /csi-node-driver-registrar
             - --csi-address=/var/lib/kubelet/plugins/topolvm.cybozu.com/node/csi-topolvm.sock
@@ -1778,7 +1566,7 @@ spec:
               mountPath: /registration
 
         - name: liveness-probe
-          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.11.0"
+          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.12.0"
           command:
             - /livenessprobe
             - --csi-address=/var/lib/kubelet/plugins/topolvm.cybozu.com/node/csi-topolvm.sock
@@ -1807,75 +1595,6 @@ spec:
           hostPath:
             path: /run/topolvm
             type: Directory
----
-# Source: topolvm/templates/scheduler/daemonset.yaml
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: topolvm-scheduler
-  namespace: topolvm-system
-  labels:
-    helm.sh/chart: topolvm-5.0.0
-    app.kubernetes.io/name: topolvm
-    app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
-    app.kubernetes.io/managed-by: Helm
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: topolvm-scheduler
-  template:
-    metadata:
-      annotations:
-        checksum/config: 700303f025f9d004c6bc734e8cd7b73d036221a8a744c045806a58ab992c21c3
-      labels:
-        app.kubernetes.io/name: topolvm-scheduler
-    spec:
-      securityContext: 
-        runAsGroup: 10000
-        runAsUser: 10000
-      serviceAccountName: topolvm-scheduler
-      containers:
-        - name: topolvm-scheduler
-          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.11.0"
-          command:
-            - /topolvm-scheduler
-            - --config=/etc/topolvm/scheduler-options.yaml
-          livenessProbe:
-            httpGet:
-              host: localhost
-              port: 9251
-              path: /status
-          readinessProbe:
-            httpGet:
-              host: localhost
-              port: 9251
-              path: /status
-          volumeMounts:
-            - mountPath: /etc/topolvm
-              name: topolvm-scheduler-options
-      hostNetwork: true
-      volumes:
-        - name: topolvm-scheduler-options
-          configMap:
-            name: topolvm-scheduler-options
-      affinity: 
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: node-role.kubernetes.io/control-plane
-                operator: Exists
-            - matchExpressions:
-              - key: node-role.kubernetes.io/master
-                operator: Exists
-      tolerations: 
-        - key: CriticalAddonsOnly
-          operator: Exists
-        - effect: NoSchedule
-          key: node-role.kubernetes.io/control-plane
-        - effect: NoSchedule
-          key: node-role.kubernetes.io/master
 ---
 # Source: topolvm/charts/cert-manager/templates/cainjector-deployment.yaml
 apiVersion: apps/v1
@@ -2064,20 +1783,26 @@ metadata:
   name: topolvm-controller
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: topolvm-controller
+      app.kubernetes.io/component: controller
+      
+      app.kubernetes.io/name: topolvm
+      app.kubernetes.io/instance: topolvm
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: topolvm-controller
+        app.kubernetes.io/component: controller
+        
+        app.kubernetes.io/name: topolvm
+        app.kubernetes.io/instance: topolvm
     spec:
       securityContext: 
         runAsGroup: 10000
@@ -2085,7 +1810,7 @@ spec:
       serviceAccountName: topolvm-controller
       containers:
         - name: topolvm-controller
-          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.11.0"
+          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.12.0"
           command:
             - /topolvm-controller
             - --cert-dir=/certs
@@ -2122,19 +1847,30 @@ spec:
               mountPath: /certs
 
         - name: csi-provisioner
-          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.11.0"
+          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.12.0"
           command:
             - /csi-provisioner
             - --csi-address=/run/topolvm/csi-topolvm.sock
             - --feature-gates=Topology=true
             - --leader-election
             - --leader-election-namespace=topolvm-system
+            - --enable-capacity
+            - --capacity-ownerref-level=2
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           volumeMounts:
             - name: socket-dir
               mountPath: /run/topolvm
 
         - name: csi-resizer
-          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.11.0"
+          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.12.0"
           command:
             - /csi-resizer
             - --csi-address=/run/topolvm/csi-topolvm.sock
@@ -2145,7 +1881,7 @@ spec:
               mountPath: /run/topolvm
 
         - name: liveness-probe
-          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.11.0"
+          image: "ghcr.io/topolvm/topolvm-with-sidecar:0.12.0"
           command:
             - /livenessprobe
             - --csi-address=/run/topolvm/csi-topolvm.sock
@@ -2162,13 +1898,17 @@ spec:
       affinity: 
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                - topolvm-controller
-            topologyKey: kubernetes.io/hostname
+            - labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                      - controller
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - topolvm
+              topologyKey: kubernetes.io/hostname
 ---
 # Source: topolvm/templates/controller/csidriver.yaml
 apiVersion: storage.k8s.io/v1
@@ -2176,12 +1916,13 @@ kind: CSIDriver
 metadata:
   name: topolvm.cybozu.com
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 spec:
+  storageCapacity: true
   attachRequired: false
   podInfoOnMount: true
   volumeLifecycleModes:
@@ -2196,10 +1937,10 @@ metadata:
   name: topolvm-webhook-ca
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   secretName: topolvm-webhook-ca
@@ -2223,10 +1964,10 @@ metadata:
   name: topolvm-mutatingwebhook
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   secretName: topolvm-mutatingwebhook
@@ -2254,10 +1995,10 @@ metadata:
   name: topolvm-webhook-selfsign
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   selfSigned: {}
@@ -2270,10 +2011,10 @@ metadata:
   name: topolvm-webhook-ca
   namespace: topolvm-system
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   ca:
@@ -2330,10 +2071,10 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: topolvm-system/topolvm-mutatingwebhook
   labels:
-    helm.sh/chart: topolvm-5.0.0
+    helm.sh/chart: topolvm-6.0.1
     app.kubernetes.io/name: topolvm
     app.kubernetes.io/instance: topolvm
-    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/version: "0.12.0"
     app.kubernetes.io/managed-by: Helm
 webhooks:
   - name: pvc-hook.topolvm.cybozu.com
@@ -2357,28 +2098,6 @@ webhooks:
         apiGroups: [""]
         apiVersions: ["v1"]
         resources: ["persistentvolumeclaims"]
-    sideEffects: None
-  - name: pod-hook.topolvm.cybozu.com
-    admissionReviewVersions:
-      - "v1"
-      - "v1beta1"
-    namespaceSelector:
-      matchExpressions:
-        - key: topolvm.cybozu.com/webhook
-          operator: NotIn
-          values: ["ignore"]
-    failurePolicy: Fail
-    matchPolicy: Equivalent
-    clientConfig:
-      service:
-        namespace: topolvm-system
-        name: topolvm-controller
-        path: /pod/mutate
-    rules:
-      - operations: ["CREATE"]
-        apiGroups: [""]
-        apiVersions: ["v1"]
-        resources: ["pods"]
     sideEffects: None
 ---
 # Source: topolvm/templates/priorityclass.yaml

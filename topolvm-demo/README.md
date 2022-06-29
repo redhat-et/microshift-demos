@@ -7,7 +7,7 @@ LVM partitioning must be enabled in the os-tree demo's [kickstart file](../ostre
 
 ## Environment Configuration
 
-This demo follows after the [MicroShift ostree demo](../ostree-demo). It is assumed that a RHEL for Edge guest OS is running and ready to upgrade to a MicroShift rpm-ostree layer (i.e. completed up through step [Provisioning a VM with the ostree, looking around](../ostree-demo#provisioning-a-vm-with-the-ostree-looking-around)). That said, these steps should work for MicroShift deployed to any supported OS.  To initialize a bring-your-own OS environment, see [Microshift documentation](https://microshift.io/docs/getting-started/).  
+This demo follows after the [MicroShift ostree demo](../ostree-demo). It is assumed that a RHEL for Edge guest OS is running and ready to upgrade to a MicroShift rpm-ostree layer (i.e. completed up through step [Provisioning a VM with the ostree, looking around](../ostree-demo#provisioning-a-vm-with-the-ostree-looking-around)). That said, these steps should work for MicroShift deployed to any supported OS.  To initialize a different supported OS environment, see [Microshift documentation](https://microshift.io/docs/getting-started/).  
 
 For reference, see the original [TopoLVM on Kubernetes demo](https://github.com/topolvm/topolvm/tree/main/deploy)
 
@@ -15,23 +15,11 @@ The manifests in this demo were generated using [Helm](https://helm.sh/). See [T
 
 - cert-manager.enabled=**true**
 - lvmd.deviceClasses[0].volume-group=**vg_root**
-- lvmd.deviceClasses[0].spare-gb=**9**
+- lvmd.deviceClasses[0].spare-gb=**2**
 - controller.replicaCount=**1**
-
-## Inject Config Files
-
-SCP the systemd [unit file](./microshift.service) and [kube-scheduler-config.yaml](./kube-scheduler-config.yaml).
-
-Login credentials are redhat:redhat.
-
-```shell
-VM_IP=<R4E Instance IP>
-scp ./kube-scheduler-config.yaml ./microshift.service "$VM_IP":~/
-ssh "$VM_IP" \
-'sudo mkdir /etc/microshift && \
-sudo mv ~/kube-scheduler-config.yaml /etc/microshift/ && \
-sudo mv ~/microshift.service /etc/systemd/system/'
-```
+- controller.storageCapacityTracking.enabled=**true**
+- webhook.podMutatingWebhook.enabled=**false**
+- scheduler.enabled=**false**
 
 ## Install and Start MicroShift
 
@@ -55,13 +43,10 @@ scp ./0_cert-manager.crds.yaml ./1_topolvm-manifests.yaml redhat$VM_IP:~
 
 **_Shell into the R4E instance before proceeding._**
 
-**1. Create the TopoLVM namespace and apply required resource labels.**
+**1. Apply required resource labels.**
 
 ```shell
-sudo -s
 export KUBECONFIG=/var/lib/microshift/resources/kubeadmin/kubeconfig
-oc new-project topolvm-system
-oc label namespace topolvm-system topolvm.cybozu.com/webhook=ignore
 oc label namespace kube-system topolvm.cybozu.com/webhook=ignore
 ```
 
@@ -72,7 +57,7 @@ oc label namespace kube-system topolvm.cybozu.com/webhook=ignore
 ```shell
 oc apply -f ./0_cert-manager.crd.yaml
 oc apply -f ./1_topolvm-manifests.yaml
-watch -n 1 sudo oc get -n topolvm-system 
+watch -n 1 oc get -n topolvm-system 
 ```
 
 Wait for TopoLVM to stabilize.  End the watch with `ctrl-C`.
@@ -80,14 +65,13 @@ Wait for TopoLVM to stabilize.  End the watch with `ctrl-C`.
 **3. Deploy the test pod and pvc.**
 
 ```shell
-oc project default
-oc create -f example.yaml
+oc create -f ./2_demo_workload.yaml
 ```
 
 **4. Verify the example PVC has been bound, and the LV has been created.**
 
 ```shell
-oc get pod,pvc,pv
+oc get pod,pvc,pv -n default
 lvs
 lvdisplay
 ```

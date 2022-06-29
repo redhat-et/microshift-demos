@@ -5,7 +5,7 @@ zerombr
 clearpart --all --initlabel
 
 ### Partitioning (default: xfs) ###
-# To enable LVM partitioning, comment out autopart ... --fstype=xfs, uncomment LVM partitioning lines.
+# To enable LVM partitioning, comment out the next line, starting with "autopart --type=plain ...", uncomment LVM partitioning lines.
 autopart --type=plain --fstype=xfs --nohome
 ### LVM partitioning ###
 #part /boot --fstype xfs --ondisk=vda --size=150
