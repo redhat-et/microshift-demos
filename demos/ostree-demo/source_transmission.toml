@@ -1,0 +1,7 @@
+id = "transmission"
+name = "Transmission"
+type = "yum-baseurl"
+url = "http://cdn.redhat.edge-lab.net/content/rpms/rhel/8"
+check_gpg = false
+check_ssl = false
+system = false
