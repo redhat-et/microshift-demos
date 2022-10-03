@@ -3,13 +3,32 @@
 set -e -o pipefail
 
 REPOROOT="$(git rev-parse --show-toplevel)"
-DEMONAME="$(basename $(pwd))"
-DEMOROOT="${REPOROOT}/${DEMONAME}"
 
-sudo rm -f ${DEMOROOT}/builds/*
+title() {
+    echo -e "\E[34m# $1\E[00m";
+}
 
+title "Deleting build dir"
+sudo rm -rf "${REPOROOT}"/builds
+
+title "Cancelling and deleting composes"
 for uuid in $(sudo composer-cli compose list | awk '{print $1}'); do
     echo "Deleting compose ${uuid}"
     sudo composer-cli compose cancel ${uuid} || true
     sudo composer-cli compose delete ${uuid} || true
+done
+
+title "Deleting blueprints"
+for blueprint in $(sudo composer-cli blueprints list | awk '{print $1}'); do
+    echo "Deleting blueprint ${blueprint}"
+    sudo composer-cli blueprints delete ${blueprint} || true
+done
+
+title "Deleting sources"
+for source in $(sudo composer-cli sources list | awk '{print $1}'); do
+    if [[ " baseos appstream " == *" $source "* ]]; then
+        continue
+    fi
+    echo "Deleting source ${source}"
+    sudo composer-cli sources delete ${source} || true
 done
