@@ -9,43 +9,13 @@ This demo shows an end-to-end provisioning workflow for MicroShift on a RHEL4Edg
 
 ## Pre-requisites
 
-To build the installer image, you need a RHEL 8.4 machine registered via `subscription-manager` and attached to a subscription that includes OCP4.7.
+Follow the instructions for [building demo images on a RHEL machine](https://github.com/redhat-et/microshift-demos/tree/main/README.md) to build the `e2e-demo` artefacts.
 
-Running `sudo subscription-manager repos --list-enabled | grep ID` should yield:
+For this demo, you also need a GitHub repo from which you will configure the RHEL edge device running MicroShift via GitOps. Fork the demo's GitOps repo https://github.com/redhat-et/microshift-config into your own org and define the GITOPS_REPO environment variable accordingly:
 
-    Repo ID:   rhel-8-for-x86_64-appstream-rpms
-    Repo ID:   rhel-8-for-x86_64-baseos-rpms
-    Repo ID:   rhocp-4.7-for-rhel-8-x86_64-rpms
-
-Install `git` if not yet installed and clone the demo repo:
-
-    git clone https://github.com/redhat-et/microshift-demos.git
-    cd microshift-demos/e2e-demo
-
-Fork the demo's GitOps repo <https://github.com/redhat-et/microshift-config> into your own org and define the `GITOPS_REPO` environment variable accordingly:
-
-    GITOPS_REPO="https://github.com/MY_ORG/microshift-config"
-
-Set `UPGRADE_SERVER_IP` to the IP address of the current host:
-
-    export UPGRADE_SERVER_IP=192.168.122.67
+    export GITOPS_REPO="https://github.com/MY_ORG/microshift-config"
 
 Finally, you need an [Open Cluster Management](https://open-cluster-management.io/) instance accessible by the device you'll provision as well as the `oc` client installed on the machine you'll register the cluster from.
-
-## Building the RHEL4Edge Image
-
-Run the following to prepare for building the RHEL4Edge installer ISO containing the necessary MicroShift dependencies:
-
-    ./prepare_builder.sh
-
-Update the kickstart file to point to your forked GitOps repo and build the ostree and installer images:
-
-    ./customize.sh
-    ./build.sh
-
-If all goes well, you should find the installer ISO at `./builds/e2e-demo-installer.x86_64.iso`.
-
-Alternatively, you may download a [pre-built ISO](http://cdn.redhat.edge-lab.net/content/microshift-demos/e2e-demo/r4e-microshift-installer.x86_64.iso), noting this ISO's kickstart points to the demo's default GitOps repo.
 
 ## Provsioning and On-Boarding a Device
 
