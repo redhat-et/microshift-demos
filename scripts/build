@@ -4,11 +4,58 @@ set -e -o pipefail
 #trap 'echo "# $BASH_COMMAND"' DEBUG
 
 REPOROOT="$(git rev-parse --show-toplevel)"
-DEMONAME="$(basename "$(pwd)")"
-DEMOROOT="${REPOROOT}/${DEMONAME}"
+DEMOS=$(cd "${REPOROOT}/demos"; find * -maxdepth 1 -type d | xargs)
+
+usage() {
+    local error_message="$1"
+
+    if [ -n "$error_message" ]; then
+        echo "ERROR: $error_message"
+        echo
+    fi
+    echo "Usage: $(basename $0) <demoname>"
+    exit 1
+}
+
+if [[ $# -ne 1 || " ${DEMOS} " != *"$1"* ]]; then
+    usage "Must specify demo name (one of [${DEMOS}])."
+fi
+
+DEMONAME=$1
+DEMODIR="${REPOROOT}/demos/${DEMONAME}"
+BUILDDIR="${REPOROOT}/builds/${DEMONAME}"
+MIRRORDIR="${REPOROOT}/builds/mirror"
+
+PRIMARY_IP=$(ip route get 8.8.8.8 | head -1 | cut -d' ' -f 7)
+BUILD_ARCH=$(uname -i)
+
+SSH_PUBLIC_KEY_FILE=${SSH_PUBLIC_KEY_FILE:-${BUILDDIR}/id_demo.pub}
+GITOPS_REPO=${GITOPS_REPO:-https://github.com/redhat-et/microshift-config}
+OSTREE_SERVER_URL=${OSTREE_SERVER_URL:-http://${PRIMARY_IP}:8080}
 
 title() {
     echo -e "\E[34m# $1\E[00m";
+}
+
+add_local_mirrors() {
+    if [ ! -d "${REPOROOT}/builds/mirror" ]; then
+        echo "WARNING: No local RPM mirror found at ${REPOROOT}/builds/mirror. Trying to continue without."
+    fi
+    for repo in $(find "${REPOROOT}"/builds/mirror/* -maxdepth 0 -type d); do
+        name=$(basename "${repo}")
+        title "Adding source '${name}' to builder"
+        cat <<- EOF > "${MIRRORDIR}/source_${name}.toml"
+id = "${name}"
+name = "${name} repo"
+type = "yum-baseurl"
+url = "file://${MIRRORDIR}/${name}/"
+check_gpg = false
+check_ssl = false
+system = false
+EOF
+        sudo composer-cli sources delete "${name}" 2>/dev/null || true
+        sudo composer-cli sources add "${MIRRORDIR}/source_${name}.toml"
+    done
 }
 
 load_blueprint() {
@@ -16,7 +63,7 @@ load_blueprint() {
     local file=$2
 
     sudo composer-cli blueprints delete "${name}" 2>/dev/null || true
-    sudo composer-cli blueprints push "${DEMOROOT}/blueprints/${file}"
+    sudo composer-cli blueprints push "${file}"
     sudo composer-cli blueprints depsolve "${name}"
 }
 
@@ -57,11 +104,11 @@ build_image() {
 
     if [ -n "$parent_version" ]; then
         title "Serving ${parent_blueprint} v${parent_version} container locally"
-        sudo podman rm -f "${parent_blueprint}-server" 2>/dev/null || true
+        sudo podman rm -f "ostree-server" 2>/dev/null || true
         sudo podman rmi -f "localhost/${parent_blueprint}:${parent_version}" 2>/dev/null || true
         imageid=$(cat "./${parent_blueprint}-${parent_version}-container.tar" | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
         sudo podman tag "${imageid}" "localhost/${parent_blueprint}:${parent_version}"
-        sudo podman run -d --name="${parent_blueprint}-server" -p 8080:8080 "localhost/${parent_blueprint}:${parent_version}"
+        sudo podman run -d --name="ostree-server" -p 8080:8080 "localhost/${parent_blueprint}:${parent_version}"
 
         title "Building ${image_type} for ${blueprint} v${version}, parent ${parent_blueprint} v${parent_version}"
         buildid=$(sudo composer-cli compose start-ostree --ref "rhel/8/$(uname -i)/edge" --url http://localhost:8080/repo/ "${blueprint}" "${image_type}" | awk '{print $2}')
@@ -77,15 +124,11 @@ build_image() {
 }
 
 
-mkdir -p "${DEMOROOT}/builds"
-pushd "${DEMOROOT}/builds" &>/dev/null
+mkdir -p "${BUILDDIR}"
+pushd "${BUILDDIR}" &>/dev/null
 
-title "Adding extra RPM repos to host"
-mkdir -p /etc/osbuild-composer/repositories/
-sudo cp "${REPOROOT}"/_lib/sources/rhel-8*.json /etc/osbuild-composer/repositories/
-sudo systemctl restart osbuild-composer.service
-
-for source in "${DEMOROOT}"/sources/*.toml; do
+add_local_mirrors
+for source in "${DEMODIR}"/source_*.toml; do
     id="$(grep -Po '^\s?id\s?=\s?"\K[^"]+' "${source}" | head -n 1)"
     title "Adding source '${id}' to builder"
     sudo composer-cli sources delete "${id}" 2>/dev/null || true
@@ -96,16 +139,13 @@ done
 # Assumes files are named following the pattern "${SOME_NAME}_v${SOME_VERSION}.toml".
 # Assumes blueprint N is the parent of blueprint N+1.
 parent_version=""
-for blueprint in "${DEMOROOT}"/blueprints/*.toml; do
-    filename="$(basename "${blueprint}")"
-    if [ "${filename}" == installer.toml ]; then continue; fi
-
-    version="$(echo "${filename}" | grep -Po '_v\K(.*)(?=\.toml)')"
-    if [ ! -f "${DEMOROOT}/builds/${DEMONAME}-${version}-container.tar" ]; then
+for blueprint in "${DEMODIR}"/blueprint_*.toml; do
+    version="$(echo "${blueprint}" | grep -Po '_v\K(.*)(?=\.toml)')"
+    if [ ! -f "${BUILDDIR}/${DEMONAME}-${version}-container.tar" ]; then
         if [ -z "${parent_version}" ]; then
-            build_image "${filename}" "${DEMONAME}" "${version}" edge-container
+            build_image "${blueprint}" "${DEMONAME}" "${version}" edge-container
         else
-            build_image "${filename}" "${DEMONAME}" "${version}" edge-container "${DEMONAME}" "${parent_version}"
+            build_image "${blueprint}" "${DEMONAME}" "${version}" edge-container "${DEMONAME}" "${parent_version}"
         fi
     else
         title "Skipping build of ${DEMONAME} v${version}"
@@ -113,24 +153,29 @@ for blueprint in "${DEMOROOT}"/blueprints/*.toml; do
     parent_version="${version}"
 done
 
-title "Removing extra RPM repos from host" # builder trips on it
-sudo rm -f /etc/osbuild-composer/repositories/rhel-8*.json
-sudo systemctl restart osbuild-composer.service
-
 # Build the installer ISO if it doesn't exist yet
-if [ ! -f "${DEMOROOT}/builds/installer-0.0.0-installer.iso" ]; then
-    build_image installer.toml "installer" 0.0.0 edge-installer "${DEMONAME}" 0.0.1
+if [ ! -f "${BUILDDIR}/installer-0.0.0-installer.iso" ]; then
+    build_image "${REPOROOT}/scripts/shared/installer.toml" "installer" 0.0.0 edge-installer "${DEMONAME}" 0.0.1
 else
     title "Skipping build of installer"
 fi
 
 # Embed the kickstart into the installer ISO if there's no ISO containing it yet
-if [ ! -f "${DEMOROOT}/builds/installer.$(uname -i).iso" ]; then
+if [ ! -f "${BUILDDIR}/installer.$(uname -i).iso" ]; then
     title "Embedding kickstart"
-    cp "${DEMOROOT}/blueprints/kickstart.ks" "${DEMOROOT}/builds/kickstart.ks"
-    sudo podman run --rm --privileged -ti -v "${DEMOROOT}/builds":/data -v /dev:/dev fedora /bin/bash -c \
-        "dnf -y install lorax; cd /data; mkksiso kickstart.ks installer-0.0.0-installer.iso ${DEMONAME}-installer.$(uname -i).iso; exit"
-    sudo chown "$(whoami)." "${DEMOROOT}/builds/${DEMONAME}-installer.$(uname -i).iso"
+    if [ -f "${SSH_PUBLIC_KEY_FILE}" ]; then
+        echo "INFO: Using existing SSH public key ${SSH_PUBLIC_KEY_FILE}"
+    else
+        echo "INFO: Generating new SSH key pair"
+        ssh-keygen -t ed25519 -C "microshift@edge" -f ${SSH_PUBLIC_KEY_FILE%.pub} -N ""
+    fi
+    cat "${DEMODIR}/kickstart.ks.tmpl" | \
+        OSTREE_REPO_URL=${OSTREE_SERVER_URL}/repo/ \
+        TRANSMISSION_URL=${GITOPS_REPO}?ref=\${uuid} \
+        AUTHORIZED_KEY=$(cat "${SSH_PUBLIC_KEY_FILE}") \
+        envsubst > "${BUILDDIR}/kickstart.ks"
+    sudo mkksiso kickstart.ks installer-0.0.0-installer.iso ${DEMONAME}-installer.${BUILD_ARCH}.iso
+    sudo chown -R "$(whoami)." "${BUILDDIR}"
 else
     title "Skipping embedding of kickstart"
 fi
