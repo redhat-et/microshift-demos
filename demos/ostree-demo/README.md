@@ -6,60 +6,25 @@ Note the demo is deliberately low-level, walking through how to build OS images 
 
 ## Preparing the demo
 
-### Pre-requisites
+Follow the instructions for [building demo images on a RHEL machine](https://github.com/redhat-et/microshift-demos/tree/main/README.md) up to the point of having mirrored the repos, but do not build the `ostree-demo` artefacts yet.
 
-To build the ostrees and installer image, you need a RHEL 8.6 machine registered via `subscription-manager` and attached to a subscription that includes OCP4.8. You can add a trial evaluation for OCP at [Red Hat Customer Portal - Product Downloads](https://access.redhat.com/downloads). Once you register your RHEL installation, run `subscription-manager repos --enable="rhocp-4.8-for-rhel-8-x86_64-rpms"` to add the OCP repo. `appstream-rpms` and `baseos-rpms` are available by default.
+For this demo, you also need a GitHub repo from which you will configure the RHEL edge device running MicroShift via GitOps. Fork the demo's GitOps repo https://github.com/redhat-et/microshift-config into your own org and define the GITOPS_REPO environment variable accordingly:
 
-Running `sudo subscription-manager repos --list-enabled | grep ID` should yield:
-
-    Repo ID:   rhel-8-for-x86_64-appstream-rpms
-    Repo ID:   rhel-8-for-x86_64-baseos-rpms
-    Repo ID:   rhocp-4.8-for-rhel-8-x86_64-rpms
-
-Install `git` if not yet installed and clone the demo repo:
-
-    git clone https://github.com/redhat-et/microshift-demos.git
-    cd microshift-demos/ostree-demo
-
-Fork the demo's GitOps repo <https://github.com/redhat-et/microshift-config> into your own org and define the `GITOPS_REPO` environment variable accordingly:
-
-    GITOPS_REPO="https://github.com/MY_ORG/microshift-config"
-
-Set `UPGRADE_SERVER_IP` to the IP address of the current host:
-
-    export UPGRADE_SERVER_IP=192.168.122.67
-
-### Building the ostrees and installer image
-
-Run the following to prepare for building the RHEL4Edge installer ISO containing the necessary MicroShift dependencies:
-
-    ./prepare_builder.sh
-
-Update the kickstart file to point to your forked GitOps repo and build the ostree and installer images:
-
-    ./customize.sh
-    ./build.sh
-
-If all goes well, you should find the following files in `./builds`
-
-    ostree-demo-0.0.1-container.tar
-    ostree-demo-0.0.1-metadata.tar
-    ostree-demo-0.0.1-logs.tar
-    ostree-demo-0.0.2-container.tar
-    ...
-    ostree-demo-installer.x86_64.iso
+    export GITOPS_REPO="https://github.com/MY_ORG/microshift-config"
 
 ## Running the demo
 
 ### Creating a first blueprint, building&serving an ostree
 
-Have a look at `./blueprints/blueprint_v0.0.1.toml`, which defines a blueprint named `ostree-demo` that adds a few RPM packages for facilitating network troubleshooting to a base RHEL for Edge system, for example `arp`.
+Have a look at [`demos/ostree-demo/blueprint_v0.0.1.toml`](https://github.com/redhat-et/microshift-demos/tree/main/demos/ostree-demo/blueprint_v0.0.1.toml), which defines a blueprint named `ostree-demo` that adds a few RPM packages for facilitating network troubleshooting to a base RHEL for Edge system, for example `arp`.
 
-In a terminal, use the `composer-cli` tool to list previously uploaded blueprints, delete any existing `ostree-demo` blueprint, and upload the v0.0.1 blueprint:
+In a terminal, use the `composer-cli` tool to list previously uploaded blueprints (you shouldn't have any initially):
 
     sudo composer-cli blueprints list
-    sudo composer-cli blueprints delete ostree-demo
-    sudo composer-cli blueprints push ./blueprints/blueprint_v0.0.1.toml
+
+Now upload the v0.0.1 blueprint
+
+    sudo composer-cli blueprints push demos/ostree-demo/blueprint_v0.0.1.toml
 
 Start a build of that blueprint into an image of type `edge-container`:
 
@@ -92,11 +57,11 @@ If you want, check what the ostree repo looks like:
 
 ### Provisioning a VM with the ostree, looking around
 
-Use your favorite virtualization solution to create a VM installed using the `./builds/ostree-demo-installer.x86_64.iso`. For example, to use `libvirt`, run
+Use your favorite virtualization solution to create a VM installed using the `builds/ostree-demo/ostree-demo-installer.x86_64.iso`. For example, to use `libvirt`, run
 
-    ./prepare_virthost.sh
-    sudo cp ./builds/ostree-demo-installer.x86_64.iso /var/lib/libvirt/images
-    ./provision.sh
+    ./scripts/configure-virthost
+    sudo cp ./builds/ostree-demo/ostree-demo-installer.x86_64.iso /var/lib/libvirt/images
+    ./scripts/provision-device
 
 Note the VM must be able to reach the web server you're running on Podman.
 
@@ -132,11 +97,13 @@ You can also check whether new updates are available, which is currently not the
 
 ### Updating the blueprint, updating and rolling back the device
 
-Next, assume the operations team updates the blueprint to add the `iotop` package (see `./blueprints/blueprint_v0.0.2`), builds the updated ostree (`./builds/ostree-demo-0.0.2-container.tar`) and publishes it.
+Next, assume the operations team updates the blueprint to add the `iotop` package (see [`demos/ostree-demo/blueprint_v0.0.2.toml`](https://github.com/redhat-et/microshift-demos/tree/main/demos/ostree-demo/blueprint_v0.0.2.toml)), builds the updated ostree and publishes it.
 
-On the _host system_ run:
+For simplicity, now run the build script to build the remaining artefacts. Once complete, note you have a new ostree-tarball `builds/ostree-demo/ostree-demo-0.0.2-container.tar`.
 
-    IMAGE_ID=$(cat ./builds/ostree-demo-0.0.2-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
+Now let's serve the updated ostree using podman. On the _builder machine_ run:
+
+    IMAGE_ID=$(cat ./builds/ostree-demo/ostree-demo-0.0.2-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
     sudo podman tag ${IMAGE_ID} localhost/ostree-demo:0.0.2
     sudo podman rm -f ostree-demo-server
     sudo podman run -d --name=ostree-demo-server -p 8080:8080 localhost/ostree-demo:0.0.2
@@ -219,11 +186,11 @@ Watching the VM's console, you'll notice repeated attempts to boot into the upda
 
 ### Embedding and rolling out MicroShift
 
-Next, let's add MicroShift to the blueprint (see `./blueprints/blueprint_v0.0.3.toml`) and "publish" the updated ostree repo.
+Next, let's add MicroShift to the blueprint (see [`demos/ostree-demo/blueprint_v0.0.3.toml`](https://github.com/redhat-et/microshift-demos/tree/main/demos/ostree-demo/blueprint_v0.0.3.toml)) and "publish" the updated ostree repo.
 
 On the _host system_ run:
 
-    IMAGE_ID=$(cat ./builds/ostree-demo-0.0.3-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
+    IMAGE_ID=$(cat ./builds/ostree-demo/ostree-demo-0.0.3-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
     sudo podman tag ${IMAGE_ID} localhost/ostree-demo:0.0.3
     sudo podman rm -f ostree-demo-server
     sudo podman run -d --name=ostree-demo-server -p 8080:8080 localhost/ostree-demo:0.0.3
@@ -245,7 +212,7 @@ After a minute or so, you should be able to see the cluster running:
 
 ### Deploying workloads, connecting to Advanced Cluster Manager
 
-For security reasons, production systems should not allow remote access via SSH or Kube API (e.g. `kubectl` or `oc`). Instead, you should use a device management agent of your choice to pull updates from your management system and apply them locally, for example to drop your workload's manifests into `/var/lib/microshift/manifests` and restart the MicroShift service.
+For security reasons, production systems should not allow remote access via SSH or Kube API (e.g. `kubectl` or `oc`). Instead, you should use a device management agent of your choice to pull updates from your management system and apply them locally, for example to drop your workload's manifests into `/etc/microshift/manifests` with a `kustomization.yaml` and restart the MicroShift service.
 
 For this demo, we'll use [Transmission](https://github.com/redhat-et/transmission) agent as lightweight way of configuring the devices using GitOps. Note the blueprint v0.0.3 already added this agent. On the VM, check that Transmission service is running:
 
@@ -257,15 +224,15 @@ You'll also notice a journal entry like
 
 and on the login prompt on the VM's console you'll find the same URL. This points to the `${GITOPS}` repo you've set up at the very beginning. The Transmission agent on the device tries to clone that repo, check out the branch named after the ${DEVICE_ID} that uniquely identifies your device (here: 89b0...), and then roll the content of that branch into the running file system.
 
-If you have an instance of Red Hat Advanced Cluster Mangagement (ACM) running and accessible from your machine via `oc`, then you can clone your GitOps repo, checkout the "ostree-demo" branch and see under `/var/lib/microshift/manifests` manifests for installing the ACM `klusterlet` agent and a `kustomization.yaml` for applying these manifests. What's missing is adding the cluster's name and ACM credentials to the manifests.
+If you have an instance of Red Hat Advanced Cluster Mangagement (ACM) running and accessible from your machine via `oc`, then you can clone your GitOps repo, checkout the "ostree-demo" branch and see under `/etc/microshift/manifests` manifests for installing the ACM `klusterlet` agent and a `kustomization.yaml` for applying these manifests. What's missing is adding the cluster's name and ACM credentials to the manifests.
 
 On the machine with ACM access, run:
 
     demo_dir=$(pwd)
-    git clone "${GITOPS}" ostree-demo-config
+    git clone "${GITOPS_REPO}" ostree-demo-config
     cd ostree-demo-config
     git checkout ostree-demo
-    ${demo_dir}/register_cluster.sh "ostree-demo-cluster"
+    demos/ostree-demo/register_cluster.sh "ostree-demo-cluster"
     git checkout -b ${DEVICE_ID}
     git push origin ${DEVICE_ID}
 
