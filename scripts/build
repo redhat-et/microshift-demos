@@ -5,6 +5,7 @@ set -e -o pipefail
 
 REPOROOT="$(git rev-parse --show-toplevel)"
 DEMOS=$(cd "${REPOROOT}/demos"; find * -maxdepth 1 -type d | xargs)
+BUILD_ARCH=$(uname -i)
 
 usage() {
     local error_message="$1"
@@ -70,17 +71,24 @@ load_blueprint() {
 waitfor_image() {
     local uuid=$1
 
-    status=$(sudo composer-cli compose status | grep "${uuid}" | awk '{print $2}')
-    while [ "${status}" !=  FINISHED ]; do
+    local tstart=$(date +%s)
+    echo "$(date +'%Y-%m-%d %H:%M:%S') STARTED"
+
+    local status=$(sudo composer-cli compose status | grep ${uuid} | awk '{print $2}')
+    while [ "${status}" =  "RUNNING" ]; do
         sleep 10
         status=$(sudo composer-cli compose status | grep "${uuid}" | awk '{print $2}')
-        echo "$(date +'%Y-%m-%d %H:%M:%S')" "${status}"
-        if [ "${status}" == "FAILED" ]
-        then
-            echo "Blueprint build has failed. For more info, download logs from composer."
-            exit 1
-        fi
+        echo -en "$(date +'%Y-%m-%d %H:%M:%S') ${status}\r"
     done
+
+    local tend=$(date +%s)
+    echo "$(date +'%Y-%m-%d %H:%M:%S') ${status} - elapsed $(( (tend - tstart) / 60 )) minutes"
+
+    if [ "${status}" = "FAILED" ]; then
+        download_image ${uuid} 1
+        echo "Blueprint build has failed. For more information, review the downloaded logs"
+        exit 1
+    fi
 }
 
 download_image() {
@@ -111,10 +119,10 @@ build_image() {
         sudo podman run -d --name="ostree-server" -p 8080:8080 "localhost/${parent_blueprint}:${parent_version}"
 
         title "Building ${image_type} for ${blueprint} v${version}, parent ${parent_blueprint} v${parent_version}"
-        buildid=$(sudo composer-cli compose start-ostree --ref "rhel/8/$(uname -i)/edge" --url http://localhost:8080/repo/ "${blueprint}" "${image_type}" | awk '{print $2}')
+        buildid=$(sudo composer-cli compose start-ostree --ref "rhel/8/${BUILD_ARCH}/edge" --url http://localhost:8080/repo/ "${blueprint}" "${image_type}" | awk '{print $2}')
     else
         title "Building ${image_type} for ${blueprint} v${version}"
-        buildid=$(sudo composer-cli compose start-ostree --ref "rhel/8/$(uname -i)/edge" "${blueprint}" "${image_type}" | awk '{print $2}')
+        buildid=$(sudo composer-cli compose start-ostree --ref "rhel/8/${BUILD_ARCH}/edge" "${blueprint}" "${image_type}" | awk '{print $2}')
     fi
 
     waitfor_image "${buildid}"
@@ -161,7 +169,7 @@ else
 fi
 
 # Embed the kickstart into the installer ISO if there's no ISO containing it yet
-if [ ! -f "${BUILDDIR}/installer.$(uname -i).iso" ]; then
+if [ ! -f "${BUILDDIR}/installer.${BUILD_ARCH}.iso" ]; then
     title "Embedding kickstart"
     if [ -f "${SSH_PUBLIC_KEY_FILE}" ]; then
         echo "INFO: Using existing SSH public key ${SSH_PUBLIC_KEY_FILE}"
