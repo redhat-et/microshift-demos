@@ -23,7 +23,7 @@ Use the installer ISO to provision a physical device or VM (e.g. on libvirt).
 
 When the device boots into the RHEL 4 Edge image for the first time, it'll eventually automatically on-board via [FIDO Device Onboard](https://fidoalliance.org/intro-to-fido-device-onboard/). Until that is implemented, your device needs to be *connected to Red Hat VPN* and you need to perform a few manual steps:
 
-1. Log into the device's console (user: redhat, password: redhat).
+1. Log into the device's console (user: `microshift`, password from `builds/e2e-demo/password`).
 2. `curl` and run the `register_device.sh` script from the demo repo:
 
         curl https://raw.githubusercontent.com/redhat-et/microshift-demos/main/e2e-demo/register_device.sh | sudo sh -

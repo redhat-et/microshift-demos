@@ -40,11 +40,11 @@ Note the compose build id output and assign it to `$BUILD_ID`. Once its status i
 
     sudo composer-cli compose image ${BUILD_ID}
 
-The downloaded tarball can then be loaded into podman, tagged, and served locally:
+The downloaded tarball can then be loaded into Podman, tagged, and served locally:
 
     IMAGE_ID=$(cat ./${BUILD_ID}-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
     sudo podman tag ${IMAGE_ID} localhost/ostree-demo:0.0.1
-    sudo podman run -d --name=ostree-demo-server -p 8080:8080 localhost/ostree-demo:0.0.1
+    sudo podman run -d --name=ostree-server -p 8080:8080 localhost/ostree-demo:0.0.1
 
 Check that the web server is running and serving the repo:
 
@@ -52,7 +52,7 @@ Check that the web server is running and serving the repo:
 
 If you want, check what the ostree repo looks like:
 
-    sudo podman exec -it ostree-demo-server /bin/bash
+    sudo podman exec -it ostree-server /bin/bash
     ls -l /usr/share/nginx/html
 
 ### Provisioning a VM with the ostree, looking around
@@ -65,7 +65,7 @@ Use your favorite virtualization solution to create a VM installed using the `bu
 
 Note the VM must be able to reach the web server you're running on Podman.
 
-After the VM boots, SSH into it using the login:pwd `redhat:redhat`. Have a look at the ostree filesystem:
+After the VM boots, SSH into it and have a look at the ostree filesystem:
 
     sudo ls -l /          # note most dirs are sym-linked to /var or /usr, there are new /ostree an /sysroot dirs
     sudo touch /usr/test  # /usr and most other dirs are mounted read-only
@@ -101,12 +101,12 @@ Next, assume the operations team updates the blueprint to add the `iotop` packag
 
 For simplicity, now run the build script to build the remaining artefacts. Once complete, note you have a new ostree-tarball `builds/ostree-demo/ostree-demo-0.0.2-container.tar`.
 
-Now let's serve the updated ostree using podman. On the _builder machine_ run:
+Now let's serve the updated ostree using Podman. On the _builder machine_ run:
 
     IMAGE_ID=$(cat ./builds/ostree-demo/ostree-demo-0.0.2-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
     sudo podman tag ${IMAGE_ID} localhost/ostree-demo:0.0.2
-    sudo podman rm -f ostree-demo-server
-    sudo podman run -d --name=ostree-demo-server -p 8080:8080 localhost/ostree-demo:0.0.2
+    sudo podman rm -f ostree-server
+    sudo podman run -d --name=ostree-server -p 8080:8080 localhost/ostree-demo:0.0.2
 
 Now back on your VM console, check for available updates:
 
@@ -192,8 +192,8 @@ On the _host system_ run:
 
     IMAGE_ID=$(cat ./builds/ostree-demo/ostree-demo-0.0.3-container.tar | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
     sudo podman tag ${IMAGE_ID} localhost/ostree-demo:0.0.3
-    sudo podman rm -f ostree-demo-server
-    sudo podman run -d --name=ostree-demo-server -p 8080:8080 localhost/ostree-demo:0.0.3
+    sudo podman rm -f ostree-server
+    sudo podman run -d --name=ostree-server -p 8080:8080 localhost/ostree-demo:0.0.3
 
 Back on your VM console, upgrade the system to the latest ostree version:
 
