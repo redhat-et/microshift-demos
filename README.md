@@ -30,6 +30,8 @@ Until MicroShift RPMs are available via the Red Hat CDN, get them according to t
 
     ./scripts/mirror-repos $PATH_TO_MICROSHIFT_RPMS
 
+Download the OpenShift pull secret from https://console.redhat.com/openshift/downloads#tool-pull-secret and copy it to `$HOME/.pull-secret.json`.
+
 Build the artefacts for a given demo by running
 
     ./scripts/build $DEMONAME
@@ -38,9 +40,16 @@ whereby `$DEMONAME` is one of the demos in the list above, e.g. `ostree-demo`.
 
 Once the build completes, you should find the demo's artefacts in `builds/$DEMONAME`, e.g. for the `ostree-demo` this will be
 
+    id_demo
+    id_demo.pub
     ostree-demo-0.0.1-container.tar
     ostree-demo-0.0.1-metadata.tar
     ostree-demo-0.0.1-logs.tar
     ostree-demo-0.0.2-container.tar
     ...
     ostree-demo-installer.x86_64.iso
+    password
+
+After deploying a machine with the installer, you should be able to log into it using the user `microshift` and the password in `builds/$DEMONAME/password` or via `ssh` with
+
+    ssh -o "IdentitiesOnly=yes" -i builds/$DEMONAME/id_demo microshift@$MACHINE_IP

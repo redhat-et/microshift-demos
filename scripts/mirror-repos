@@ -25,7 +25,7 @@ title() {
 if [ $# -ne 1 ] ; then
     usage "Missing path or URL to MicroSHift RPMs."
 fi
-MICROSHIFT_RPM_SOURCE=$1
+MICROSHIFT_RPM_SOURCE=$(realpath $1)
 
 
 mkdir -p "${MIRRORDIR}"

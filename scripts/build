@@ -31,8 +31,11 @@ PRIMARY_IP=$(ip route get 8.8.8.8 | head -1 | cut -d' ' -f 7)
 BUILD_ARCH=$(uname -i)
 
 SSH_PUBLIC_KEY_FILE=${SSH_PUBLIC_KEY_FILE:-${BUILDDIR}/id_demo.pub}
+PASSWORD_FILE=${PASSWORD_FILE:-${BUILDDIR}/password}
 GITOPS_REPO=${GITOPS_REPO:-https://github.com/redhat-et/microshift-config}
 OSTREE_SERVER_URL=${OSTREE_SERVER_URL:-http://${PRIMARY_IP}:8080}
+OCP_PULL_SECRET_FILE=${OCP_PULL_SECRET_FILE:-$HOME/.pull-secret.json}
+[ ! -s "${OCP_PULL_SECRET_FILE}" ] && usage "Empty or missing pull secret file ${OCP_PULL_SECRET_FILE}"
 
 title() {
     echo -e "\E[34m# $1\E[00m";
@@ -112,11 +115,11 @@ build_image() {
 
     if [ -n "$parent_version" ]; then
         title "Serving ${parent_blueprint} v${parent_version} container locally"
-        sudo podman rm -f "ostree-server" 2>/dev/null || true
+        sudo podman rm -f ostree-server 2>/dev/null || true
         sudo podman rmi -f "localhost/${parent_blueprint}:${parent_version}" 2>/dev/null || true
         imageid=$(cat "./${parent_blueprint}-${parent_version}-container.tar" | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
         sudo podman tag "${imageid}" "localhost/${parent_blueprint}:${parent_version}"
-        sudo podman run -d --name="ostree-server" -p 8080:8080 "localhost/${parent_blueprint}:${parent_version}"
+        sudo podman run -d --name=ostree-server -p 8080:8080 "localhost/${parent_blueprint}:${parent_version}"
 
         title "Building ${image_type} for ${blueprint} v${version}, parent ${parent_blueprint} v${parent_version}"
         buildid=$(sudo composer-cli compose start-ostree --ref "rhel/8/${BUILD_ARCH}/edge" --url http://localhost:8080/repo/ "${blueprint}" "${image_type}" | awk '{print $2}')
@@ -174,13 +177,22 @@ if [ ! -f "${BUILDDIR}/installer.${BUILD_ARCH}.iso" ]; then
     if [ -f "${SSH_PUBLIC_KEY_FILE}" ]; then
         echo "INFO: Using existing SSH public key ${SSH_PUBLIC_KEY_FILE}"
     else
-        echo "INFO: Generating new SSH key pair"
+        echo "INFO: Generating new SSH key pair ${SSH_PUBLIC_KEY_FILE%.pub}"
         ssh-keygen -t ed25519 -C "microshift@edge" -f ${SSH_PUBLIC_KEY_FILE%.pub} -N ""
+    fi
+    if [ -f "${PASSWORD_FILE}" ]; then
+        echo "INFO: Using existing user password file ${PASSWORD_FILE}"
+    else
+        echo "INFO: Generating new user password file ${PASSWORD_FILE}"
+        head -c8 < <(< /dev/urandom tr -dc _A-Z-a-z-0-9) > "${PASSWORD_FILE}"
     fi
     cat "${DEMODIR}/kickstart.ks.tmpl" | \
         OSTREE_REPO_URL=${OSTREE_SERVER_URL}/repo/ \
         TRANSMISSION_URL=${GITOPS_REPO}?ref=\${uuid} \
-        AUTHORIZED_KEY=$(cat "${SSH_PUBLIC_KEY_FILE}") \
+        USER_NAME="microshift" \
+        USER_PASS_ENCRYPTED=$(openssl passwd -6 -stdin < "${SSH_PUBLIC_KEY_FILE}") \
+        USER_AUTHORIZED_KEY=$(cat "${SSH_PUBLIC_KEY_FILE}") \
+        OCP_PULL_SECRET_CONTENTS=$(cat "${OCP_PULL_SECRET_FILE}" | jq -c) \
         envsubst > "${BUILDDIR}/kickstart.ks"
     sudo mkksiso kickstart.ks installer-0.0.0-installer.iso ${DEMONAME}-installer.${BUILD_ARCH}.iso
     sudo chown -R "$(whoami)." "${BUILDDIR}"
@@ -189,7 +201,7 @@ else
 fi
 
 title "Cleaning up local ostree container serving"
-sudo podman rm -f "${DEMONAME}-server" 2>/dev/null || true
+sudo podman rm -f ostree-server 2>/dev/null || true
 
 title "Done"
 popd &>/dev/null
