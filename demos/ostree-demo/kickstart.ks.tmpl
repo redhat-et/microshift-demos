@@ -41,6 +41,7 @@ if [ -n '$USER_AUTHORIZED_KEY' ]; then
     tee "/home/$USER_NAME/.ssh/authorized_keys" > /dev/null <<EOAUTHORIZEDKEY
 $USER_AUTHORIZED_KEY
 EOAUTHORIZEDKEY
+    chown "$USER_NAME." "/home/$USER_NAME/.ssh"
 fi
 echo -e '$USER_NAME\tALL=(ALL)\tNOPASSWD: ALL' >> /etc/sudoers
 

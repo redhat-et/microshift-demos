@@ -6,14 +6,10 @@ modules = []
 groups = []
 
 
-# MicroShift and dependencies
+# MicroShift and oc client
 
 [[packages]]
 name = "microshift"
-version = "*"
-
-[[packages]]
-name = "conntrack-tools"
 version = "*"
 
 [[packages]]

@@ -190,7 +190,7 @@ if [ ! -f "${BUILDDIR}/installer.${BUILD_ARCH}.iso" ]; then
         OSTREE_REPO_URL=${OSTREE_SERVER_URL}/repo/ \
         TRANSMISSION_URL=${GITOPS_REPO}?ref=\${uuid} \
         USER_NAME="microshift" \
-        USER_PASS_ENCRYPTED=$(openssl passwd -6 -stdin < "${SSH_PUBLIC_KEY_FILE}") \
+        USER_PASS_ENCRYPTED=$(openssl passwd -6 -stdin < "${PASSWORD_FILE}") \
         USER_AUTHORIZED_KEY=$(cat "${SSH_PUBLIC_KEY_FILE}") \
         OCP_PULL_SECRET_CONTENTS=$(cat "${OCP_PULL_SECRET_FILE}" | jq -c) \
         envsubst > "${BUILDDIR}/kickstart.ks"
