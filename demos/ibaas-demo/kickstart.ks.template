@@ -1,0 +1,62 @@
+lang en_US.UTF-8
+keyboard us
+timezone UTC
+text
+reboot
+
+# Configure network to use DHCP and activate on boot
+network --bootproto=dhcp --device=link --activate --onboot=on
+
+# Partition disk with a 1GB boot XFS partition and an LVM volume containing a 8GB+ system root
+# The remainder of the volume will be used by the CSI driver for storing data
+#
+# For example, a 20GB disk would be partitioned in the following way:
+#
+# NAME          MAJ:MIN RM SIZE RO TYPE MOUNTPOINT
+# sda             8:0    0  20G  0 disk
+# ├─sda1          8:1    0   1G  0 part /boot
+# └─sda2          8:2    0  19G  0 part
+#  └─rhel-root  253:0    0   8G  0 lvm  /sysroot
+#
+zerombr
+clearpart --all --initlabel
+part /boot --fstype=xfs --asprimary --size=1024
+# Uncomment this line to add a SWAP partition of the recommended size
+#part swap --fstype=swap --recommended
+part pv.01 --grow
+volgroup rhel pv.01
+logvol / --vgname=rhel --fstype=xfs --size=8192 --name=root
+
+# Configure ostree
+ostreesetup --nogpg --osname=rhel --remote=edge --url=file:///run/install/repo/ostree/repo --ref=rhel/8/x86_64/edge
+
+%post --log=/var/log/anaconda/post-install.log --erroronfail
+
+# Replace the ostree server name
+echo -e 'url=http://BUCKET_NAME.s3.REGION.amazonaws.com/repo/' >> /etc/ostree/remotes.d/edge.conf
+
+# The pull secret is mandatory for MicroShift builds on top of OpenShift, but not OKD
+# The /etc/crio/crio.conf.d/microshift.conf references the /etc/crio/openshift-pull-secret file
+cat > /etc/crio/openshift-pull-secret << EOF
+PULL_SECRET
+EOF
+chmod 600 /etc/crio/openshift-pull-secret
+
+# Create a default redhat user, allowing it to run sudo commands without password
+useradd -m -d /home/redhat -p \$5\$XDVQ6DxT8S5YWLV7\$8f2om5JfjK56v9ofUkUAwZXTxJl3Sqnc9yPnza4xoJ0 -G wheel redhat
+echo -e 'redhat\tALL=(ALL)\tNOPASSWD: ALL' >> /etc/sudoers
+
+# Make sure redhat user directory contents ownership is correct
+chown -R redhat:redhat /home/redhat/
+
+# Configure the firewall (rules reload is not necessary here)
+firewall-offline-cmd --zone=trusted --add-source=10.42.0.0/16
+firewall-offline-cmd --zone=trusted --add-source=169.254.169.1
+
+echo -e 'export KUBECONFIG=/var/lib/microshift/resources/kubeadmin/kubeconfig' >> /root/.profile
+
+HOSTNAME=micro-$(uuidgen | cut -f 1 -d \-).local
+echo $HOSTNAME >  /etc/hostname
+echo 127.0.0.1 $HOSTNAME >> /etc/hosts
+
+%end

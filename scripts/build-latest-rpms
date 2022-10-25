@@ -1,0 +1,33 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+# This script is used to build the latest MicroShift RPMs
+
+REPOROOT="$(git rev-parse --show-toplevel)"
+RPMDIR="${REPOROOT}/builds/rpms"
+
+title() {
+    echo -e "\E[34m# $1\E[00m";
+}
+
+mkdir -p "${RPMDIR}"
+
+title "Cloning MicroShift repo"
+git clone https://github.com/openshift/microshift.git
+pushd microshift &>/dev/null
+
+title "Building MicroShift RPMs"
+make rpm
+
+title "Copying RPMs to ${RPMDIR}"
+cp -TR _output/rpmbuild/RPMS/ "${RPMDIR}"
+
+# Create RPM repository
+title "Creating RPM repository"
+createrepo "${RPMDIR}"
+
+popd &>/dev/null
+
+title "Cleaning up"
+rm -rf microshift
