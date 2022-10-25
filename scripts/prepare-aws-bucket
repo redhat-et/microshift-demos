@@ -1,0 +1,47 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+# Get bucket name as input from user
+BUCKET_NAME=$1
+REPOROOT="$(git rev-parse --show-toplevel)"
+RPMDIR="${REPOROOT}/builds/rpms"
+
+if [[ -z "${BUCKET_NAME}" ]]; then
+    echo "Usage: $0 <bucket_name>"
+    exit 1
+fi
+
+# This script will create an S3 bucket to host the latest MicroShift RPMs
+# and the intermediate ostree-commit needed to build the final edge-installer ISO.
+
+title() {
+    echo -e "\E[34m# $1\E[00m";
+}
+
+# Check if the AWS CLI is installed
+if ! command -v aws &>/dev/null ; then
+    echo "The AWS CLI is not installed. Installing..."
+    sudo dnf install -y awscli
+fi
+
+# Check if the AWS CLI is configured
+if ! aws sts get-caller-identity &>/dev/null ; then
+    echo "The AWS CLI is not configured. Running 'aws configure' to configure it."
+    aws configure
+fi
+
+# Create bucket if it does not exist
+if ! aws s3 ls "s3://${BUCKET_NAME}" &>/dev/null; then
+    echo "Creating bucket ${BUCKET_NAME}"
+    aws s3 mb "s3://${BUCKET_NAME}"
+fi
+
+# Clean up S3 bucket content
+title "Cleaning up S3 bucket content"
+aws s3 rm "s3://${BUCKET_NAME}" --recursive
+
+# Sync RPM directory to S3 bucket with public ACL
+title "Syncing RPMs to S3 bucket"
+aws s3 sync "${RPMDIR}" "s3://${BUCKET_NAME}" --acl public-read
+

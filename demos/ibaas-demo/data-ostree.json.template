@@ -1,0 +1,38 @@
+{
+    "customizations": {
+      "payload_repositories": [
+        {
+          "rhsm": true,
+          "baseurl": "https://cdn.redhat.com/content/dist/layered/rhel8/x86_64/fast-datapath/os"
+        },
+        {
+          "rhsm": true,
+          "baseurl": "https://cdn.redhat.com/content/dist/layered/rhel8/x86_64/rhocp/4.11/os"
+        },
+        {
+          "rhsm": false,
+          "baseurl": "https://BUCKET_NAME.s3.REGION.amazonaws.com/"
+        }
+  
+      ],
+      "packages": [
+        "microshift",
+        "cri-o",
+        "openvswitch2.17",
+        "openshift-clients"
+      ]
+    },
+    "distribution": "rhel-8",
+    "image_requests": [
+      {
+        "architecture": "x86_64",
+        "image_type": "edge-commit",
+        "ostree": {},
+        "upload_request": {
+          "options": {
+          },
+          "type": "aws.s3"
+        }
+      }
+    ]
+  }

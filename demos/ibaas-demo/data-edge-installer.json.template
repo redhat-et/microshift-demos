@@ -1,0 +1,22 @@
+{
+  "customizations": {
+    "packages": [
+    ]
+  },
+  "distribution": "rhel-8",
+  "image_requests": [
+    {
+      "architecture": "x86_64",
+      "image_type": "edge-installer",
+      "ostree": {
+        "url": "https://BUCKET_NAME.s3.REGION.amazonaws.com/repo/",
+        "ref": "rhel/8/x86_64/edge"
+      },
+      "upload_request": {
+        "options": {
+        },
+        "type": "aws.s3"
+      }
+    }
+  ]
+}
