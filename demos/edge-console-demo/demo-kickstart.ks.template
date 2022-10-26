@@ -1,0 +1,250 @@
+lang en_US.UTF-8
+# keyboard us
+keyboard es
+timezone UTC
+text
+reboot --eject
+
+# Configure network to use DHCP and activate on boot
+network --bootproto=dhcp --device=link --activate --onboot=on --nameserver=8.8.8.8
+
+# Partition disk with a 1GB boot XFS partition and an LVM volume containing a 16GB+ system root
+# The remainder of the volume will be used by the CSI driver for storing data
+#
+# For example, a 20GB disk would be partitioned in the following way:
+#
+# NAME          MAJ:MIN RM SIZE RO TYPE MOUNTPOINT
+# sda             8:0    0  32G  0 disk 
+# ├─sda1          8:1    0   1G  0 part /boot
+# └─sda2          8:2    0  19G  0 part 
+#  └─rhel-root  253:0    0  16G  0 lvm  /sysroot
+#
+zerombr
+clearpart --all --initlabel
+part /boot --fstype=xfs --asprimary --size=1024
+# Uncomment this line to add a SWAP partition of the recommended size
+#part swap --fstype=swap --recommended
+part pv.01 --grow
+volgroup rhel pv.01
+logvol / --vgname=rhel --fstype=xfs --size=16000 --name=root
+
+# Gen the ostreesetup line in the pre section
+%include /tmp/ostreesetup
+
+%pre
+echo PRE
+
+# RHEL for Edge 8.5 moves the ostree dir to the root of the image
+# RHEL for Edge 8.4 and 9.0 install from /run/install/repo
+# Auto-detect a dir at that location and inject it into the command list for install
+[[ -d /run/install/repo/ostree ]] && repodir='/run/install/repo/ostree/repo' || repodir='/ostree/repo'
+ref=$(ostree refs --repo=${repodir})
+echo "ostreesetup --nogpg --osname=rhel-edge --remote=rhel-edge --url=file://${repodir} --ref=${ref}" > /tmp/ostreesetup
+
+%end
+
+%post --log=/var/log/anaconda/post-install.log --erroronfail
+
+# The pull secret is mandatory for MicroShift builds on top of OpenShift, but not OKD
+# The /etc/crio/crio.conf.d/microshift.conf references the /etc/crio/openshift-pull-secret file
+cat > /etc/crio/openshift-pull-secret << EOF
+__PULL_SECRET__
+EOF
+chmod 600 /etc/crio/openshift-pull-secret
+
+USER_NAME=redhat
+USER_HOME=/home/redhat
+
+# Create a default redhat user / redhat  pw, allowing it to run sudo commands without password
+useradd -m -d ${USER_HOME} -p \$5\$XDVQ6DxT8S5YWLV7\$8f2om5JfjK56v9ofUkUAwZXTxJl3Sqnc9yPnza4xoJ0 -G wheel ${USER_NAME}
+echo -e ${USER_NAME}'\tALL=(ALL)\tNOPASSWD: ALL' >> /etc/sudoers
+
+mkdir -p ${USER_HOME}/.ssh
+chmod 755 ${USER_HOME}/.ssh
+cat <<EOF >> ${USER_HOME}/.ssh/authorized_keys 
+__AUTH_KEYS__
+EOF
+
+chmod 600 ${USER_HOME}/.ssh/authorized_keys
+chown ${USER_NAME}:${USER_NAME} ${USER_HOME}/.ssh/authorized_keys
+# no sudo password for user 
+echo -e "${USER_NAME}\tALL=(ALL)\tNOPASSWD: ALL" >> /etc/sudoers
+
+
+# Configure the firewall (rules reload is not necessary here)
+firewall-offline-cmd --zone=trusted --add-source=10.42.0.0/16
+firewall-offline-cmd --zone=trusted --add-source=169.254.169.1
+
+# there is a bug with firewalld that will remove rules created by ovn/microshift
+systemctl disable firewalld
+
+echo -e 'export KUBECONFIG=/var/lib/microshift/resources/kubeadmin/kubeconfig' >> /root/.profile
+
+HOSTNAME=micro-$(uuidgen | cut -f 1 -d \-).local
+# HOSTNAME=micro-$(cat cat /sys/class/dmi/id/product_uuid | tail -c 13).local
+echo $HOSTNAME >  /etc/hostname
+echo 127.0.0.1 $HOSTNAME >> /etc/hosts
+echo HOSTNAME: $HOSTNAME
+
+systemctl enable microshift.service
+
+cat <<EOF >/root/get-oc.sh
+#!/bin/sh
+
+    curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp-dev-preview/4.12.0-ec.4/openshift-client-linux-4.12.0-ec.4.tar.gz \
+            --output /tmp/openshift-client-linux-4.12.0-ec.4.tar.gz
+
+    cd /usr/local/bin
+    tar -zxvf /tmp/openshift-client-linux-4.12.0-ec.4.tar.gz
+    rm /tmp/openshift-client-linux-4.12.0-ec.4.tar.gz
+
+EOF
+
+chmod a+x /root/get-oc.sh
+
+%end
+
+%post --erroronfail
+#### RHC / fleet manager creds ##########
+cat <<'__FLEET_ENV__' >> /root/fleet_env.bash
+__RHC_CREDENTIALS__
+__FLEET_ENV__
+###########################################
+
+%end
+
+%post --log=/var/log/anaconda/insights-on-reboot-unit-install.log --interpreter=/usr/bin/bash --erroronfail
+echo POST-INSIGHTS-CLIENT-OVERRIDE
+
+INSIGHTS_CLIENT_OVERRIDE_DIR=/etc/systemd/system/insights-client.service.d
+INSIGHTS_CLIENT_OVERRIDE_FILE=$INSIGHTS_CLIENT_OVERRIDE_DIR/override.conf
+
+if [ ! -f $INSIGHTS_CLIENT_OVERRIDE_FILE ]; then
+    mkdir -p $INSIGHTS_CLIENT_OVERRIDE_DIR
+    cat > $INSIGHTS_CLIENT_OVERRIDE_FILE << EOF 
+[Unit]
+Requisite=greenboot-healthcheck.service
+After=network-online.target greenboot-healthcheck.service
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl enable insights-client.service
+fi
+
+%end
+
+%post --log=/var/log/anaconda/post-autoregister.log
+echo POST-AUTOREGISTER
+
+# Automatically register if credentials are provided
+[[ -e /root/fleet_env.bash ]] && source /root/fleet_env.bash
+RHC_FIRSTBOOT=${RHC_FIRSTBOOT:-false}
+
+# CREATE AUTOREGISTER SCRIPT
+# TODO: rhc firstboot registration script should be something installed with RHC (if not already)
+cat << '__RHCREGISTER__' >> /usr/local/bin/rhc_autoregister.sh
+#!/bin/bash
+
+
+if [ -e /root/fleet_env.bash ]
+then
+	source /root/fleet_env.bash
+
+	[[ -e /root/fleet_tags.yaml ]] && cp /root/fleet_tags.yaml /etc/insights-client/tags.yaml
+
+	if [[ -z ${RHC_ORGID+x} ]] && [[ -z ${RHC_USER+x} ]]
+	then
+		echo "No credentials provided for registration"
+	else
+		# Register with RHSM
+		[[ -v RHC_ORGID ]] \
+			&& subscription-manager register --org $RHC_ORGID --activationkey $RHC_ACTIVATION_KEY --force \
+			|| subscription-manager register --username $RHC_USER --password $RHC_PASS --auto-attach --force
+
+		# Register with Insights
+		insights-client --register > /var/log/anaconda/post-insights-command.log 2>&1
+
+		# Enable and start RHCD service
+		systemctl enable rhcd.service
+		systemctl restart rhcd.service
+
+		#  rm /etc/rhsm/facts/osbuild.facts
+
+		# Register with RHC
+		[[ -v RHC_ORGID ]] \
+			&& rhc connect --organization $RHC_ORGID --activation-key $RHC_ACTIVATION_KEY \
+			|| rhc connect --username $RHC_USER --password $RHC_PASS
+
+		systemctl status rhcd.service
+		systemctl status insights-client
+
+		
+		# Set specific display name set in custom post
+		if [ -z ${INSIGHTS_DISPLAY_NAME+x} ]
+		then
+			# Replace localhost with Subscription Manager ID and set Insights display name
+			# Subscription Manager ID was chosen based on availability. Refactor based on feedback
+			statichostname=$(hostnamectl | grep "Static hostname" | awk -F": " '{print $2}')
+			transienthostname=$(hostnamectl | grep "Transient hostname" | awk -F": " '{print $2}')
+			[[ -z ${transienthostname+x} ]] && displayname=${statichostname} || displayname=${transienthostname}
+			if [[ "${displayname}" == "localhost.localdomain" ]]
+			then
+				displayname=$(subscription-manager identity | grep "system identity" | awk -F": " '{print $2}')
+				insights-client --display-name "${DISPLAY_NAME_PREFIX}${displayname}"
+			fi
+		else
+			insights-client --display-name "$INSIGHTS_DISPLAY_NAME"
+		fi
+	fi
+else
+	echo "INFO: No /root/fleet_env.bash file. Skipping registration"
+fi
+__RHCREGISTER__
+
+# need to make it executable and restore selinux context
+chmod 755 /usr/local/bin/rhc_autoregister.sh
+restorecon -rv /usr/local/bin
+
+# CREATE AUTO REGISTRATION FIRSTBOOT SERVICE
+cat << '__RHCFIRSTBOOTSERVICE__' >> /etc/systemd/system/rhc_autoregister.service
+[Unit]
+Before=systemd-user-sessions.service
+Wants=network-online.target microshift-ovs-init.service
+After=network-online.target microshift-ovs-init.service
+ConditionPathExists=/root/fleet_env.bash
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/rhc_autoregister.sh
+ExecStartPost=/usr/bin/rm /root/fleet_env.bash
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+
+__RHCFIRSTBOOTSERVICE__
+
+# Set up first boot registration or do it now before reboot
+[[ $RHC_FIRSTBOOT == "true" ]] \
+    && systemctl enable rhc_autoregister.service \
+    || /usr/local/bin/rhc_autoregister.sh
+
+#systemctl enable rhcd.service
+
+%end
+
+
+%post --log=/var/log/anaconda/post-cleanup.log
+# Cleanup fleet-ification
+echo POST-CLEANUP
+
+[[ -e /root/fleet_env.bash ]] && source /root/fleet_env.bash
+RHC_FIRSTBOOT=${RHC_FIRSTBOOT:-false}
+
+# Clean up fleet install file(s)
+[[ $RHC_FIRSTBOOT != "true"  && -e /root/fleet_env.bash ]] && rm /root/fleet_env.bash
+
+%end
+
