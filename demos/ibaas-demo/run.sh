@@ -18,33 +18,6 @@ function create_iso {
     sleep 10
     ID=$(curl -H "Content-Type: application/json" -X POST -u "$RHUSER":"$PASSWD" -d@data-edge-installer.json https://console.redhat.com/api/image-builder/v1/compose | jq -r .id)
     echo $ID > edge-installer-iso-id
-
-    # Wait for the edge-installer ISO to be ready
-    while true; do
-        STATUS=$(curl -u "$RHUSER":"$PASSWD" https://console.redhat.com/api/image-builder/v1/composes/"$ID" | jq -r '.image_status.status')
-        RETRIES=10
-        case $STATUS in
-            "success")
-                echo "Creation of edge-installer ISO successful"
-                break
-                ;;
-            "failure")
-                echo "Building the edge-installer ISO failed. Retrying..."
-                RETRIES=$((RETRIES-1))
-                echo $RETRIES
-                if [ $RETRIES -eq 0 ]; then
-                    echo "Retries exceeded the maximum number of attemps. Exiting..."
-                    exit 1
-                fi
-                create_iso
-                exit 1
-                ;;
-            *)
-                echo "Status: $STATUS Waiting for image build to complete"
-                sleep 10
-                ;;
-        esac
-    done
 }
 
 # Usage function to explain arguments required for this script
@@ -118,7 +91,7 @@ fi
 # Sync ostree-commit to S3 bucket with public ACL
 title "Syncing ostree-commit to S3 bucket"
 aws s3 sync ostree-commit/ "s3://${BUCKET_NAME}" --acl public-read
-sleep 5
+sleep 10
 
 # Replace placeholders in data-edge-installer.json
 cp data-edge-installer.json.template data-edge-installer.json
@@ -127,6 +100,33 @@ sed -i "s|REGION|${REGION}|g" data-edge-installer.json
 
 # Create the edge-installer ISO using the Red Hat hosted Image Builder service
 create_iso
+
+# Wait for the edge-installer ISO to be ready
+RETRIES=20
+while true; do
+    ID=$(cat edge-installer-iso-id)
+    STATUS=$(curl -u "$RHUSER":"$PASSWD" https://console.redhat.com/api/image-builder/v1/composes/"$ID" | jq -r '.image_status.status')
+    case $STATUS in
+        "success")
+            echo "Creation of edge-installer ISO successful"
+            break
+            ;;
+        "failure")
+            echo "Building the edge-installer ISO failed. Retrying..."
+            RETRIES=$((RETRIES-1))
+            echo $RETRIES
+            if [ $RETRIES -eq 0 ]; then
+                echo "Retries exceeded the maximum number of attemps. Exiting..."
+                exit 1
+            fi
+            create_iso
+            ;;
+        *)
+            echo "Status: $STATUS Waiting for image build to complete"
+            sleep 10
+            ;;
+    esac
+done
 
 # Download the edge-installer ISO
 title "Downloading the edge-installer ISO"
