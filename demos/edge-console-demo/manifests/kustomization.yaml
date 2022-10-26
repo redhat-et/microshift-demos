@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: microweb 
+resources:
+  - microweb-ns.yaml
+  - microweb-mdns.yaml
+  - microweb-service.yaml
+  - microweb.yaml
