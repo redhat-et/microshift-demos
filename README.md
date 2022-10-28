@@ -4,6 +4,7 @@ This repo contains demos of various [MicroShift](https://github.com/openshift/mi
 
 * [ostree-demo](https://github.com/redhat-et/microshift-demos/tree/main/demos/ostree-demo): Start here to become familiar with `rpm-ostree` basics (image building, updates&rollbacks, etc.) and "upgrading into MicroShift".
 * [e2e-demo](https://github.com/redhat-et/microshift-demos/tree/main/demos/e2e-demo): Demonstrates the end-to-end process from device provisioning to management via GitOps and ACM.
+* [ibaas-demo](https://github.com/redhat-et/microshift-demos/tree/main/demos/ibaas-demo): Allows you to build a RHEL for Edge 8 ISO containing MicroShift and its dependencies in a completely automated manner using Red Hat's hosted Image Builder service from `console.redhat.com`.
 
 ## Building demo images on a RHEL machine
 
