@@ -6,6 +6,19 @@ title() {
     echo -e "\E[34m# $1\E[00m";
 }
 
+fatal() {
+    echo -e "\E[31m$1\E[00m";
+    exit 1
+}
+
+DISTRO=$(grep "^ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
+[ "${DISTRO}" == "rhel" ] || fatal "Error: Must run on a RHEL system (have: ${DISTRO})."
+DISTRO_VERSION=$(grep "^VERSION_ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
+[[ "$DISTRO_VERSION" =~ ^([0-9]{1,})\.([0-9]{1,})$ ]] || fatal "Error: Invalid OS version string (have: ${DISTRO_VERSION})"
+DISTRO_VERSION_MAJOR=${BASH_REMATCH[1]}
+DISTRO_VERSION_MINOR=${BASH_REMATCH[2]}
+[ ${DISTRO_VERSION_MAJOR} -eq 8 -a ${DISTRO_VERSION_MINOR} -ge 7 ] || fatal "Error: Must run on RHEL system >= 8.7 and <9.0 (have: ${DISTRO_VERSION}."
+
 
 title "Installing experimental 'rpm-ostree' version (with support for embedding containers)"
 # Remove original rpm-ostree packages
