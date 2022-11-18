@@ -1,13 +1,34 @@
 #!/bin/bash
 
-set -exo pipefail
+set -e -o pipefail
 
+title() {
+    echo -e "\E[34m# $1\E[00m";
+}
+
+
+title "Installing experimental 'rpm-ostree' version (with support for embedding containers)"
+# Remove original rpm-ostree packages
+LIST2REMOVE=$(rpm -qa | egrep '^rpm-ostree' || true)
+[ ! -z "${LIST2REMOVE}" ] && sudo dnf remove -y ${LIST2REMOVE}
+
+# Clean-up the old osbuild jobs and state to avoid incompatibilities between versions
+sudo rm -rf /var/lib/osbuild-composer || true
+sudo rm -rf /var/cache/{osbuild-composer,osbuild-worker} || true
+
+# Install the experimental rpm-ostree packages
+sudo wget -P /etc/yum.repos.d https://copr.fedorainfracloud.org/coprs/walters/ostreerhel8/repo/centos-stream-8/walters-ostreerhel8-centos-stream-8.repo
+
+title "Installing ImageBuilder tools"
 sudo dnf install -y \
     osbuild-composer composer-cli cockpit-composer \
     bash-completion podman genisoimage syslinux \
     createrepo syslinux yum-utils selinux-policy-devel jq wget lorax
 
+title "Starting osbuild-composer and cockpit services and configuring firewall"
 sudo systemctl enable osbuild-composer.socket --now
 sudo systemctl enable cockpit.socket --now
 sudo firewall-cmd -q --add-service=cockpit
 sudo firewall-cmd -q --add-service=cockpit --permanent
+
+title "Done"
