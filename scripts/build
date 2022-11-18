@@ -139,12 +139,14 @@ mkdir -p "${BUILDDIR}"
 pushd "${BUILDDIR}" &>/dev/null
 
 add_local_mirrors
+shopt -s nullglob
 for source in "${DEMODIR}"/source_*.toml; do
     id="$(grep -Po '^\s?id\s?=\s?"\K[^"]+' "${source}" | head -n 1)"
     title "Adding source '${id}' to builder"
     sudo composer-cli sources delete "${id}" 2>/dev/null || true
     sudo composer-cli sources add "${source}"
 done
+shopt -u nullglob
 
 # Build images from blueprints in alphabetical order of file names.
 # Assumes files are named following the pattern "${SOME_NAME}_v${SOME_VERSION}.toml".
