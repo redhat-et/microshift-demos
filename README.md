@@ -43,6 +43,14 @@ Build the artefacts for a given demo by running
 
 whereby `$DEMONAME` is one of the demos in the list above, e.g. `ostree-demo`.
 
+> :warning: Should you encounter a build error similar to
+>
+>     ERROR: BlueprintsError: ostree-demo: DNF error occurred: RepoError: There was a problem reading a repository: Failed to download metadata for repo '2c28d9e...' [ansible-local: file:///home/user/path/to/builds/mirror/ansible-local/]: Cannot download repomd.xml: Cannot download repodata/repomd.xml: All mirrors were tried
+>
+> then the reason is likely that osbuild-composer cannot access the mirror directory (since RHEL 8.7 it runs as non-privileged _osbuild-composer user). You may then need to make your home dir traversable by other users.
+>
+>     chmod o+x $HOME
+
 Once the build completes, you should find the demo's artefacts in `builds/$DEMONAME`, e.g. for the `ostree-demo` this will be
 
     id_demo
