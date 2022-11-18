@@ -16,12 +16,13 @@ mkdir -p "${RPMDIR}"
 title "Cloning MicroShift repo"
 git clone https://github.com/openshift/microshift.git
 pushd microshift &>/dev/null
+git checkout e897168a018705614ea1660d1bac762093641be0 # pin to a known commit so we can add matching image pullspecs to blueprints
 
 title "Building MicroShift RPMs"
 make rpm
 
 title "Copying RPMs to ${RPMDIR}"
-cp -TR _output/rpmbuild/RPMS/ "${RPMDIR}"
+cp _output/rpmbuild/RPMS/*/*.rpm "${RPMDIR}"
 
 # Create RPM repository
 title "Creating RPM repository"

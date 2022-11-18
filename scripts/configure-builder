@@ -36,12 +36,23 @@ title "Installing ImageBuilder tools"
 sudo dnf install -y \
     osbuild-composer composer-cli cockpit-composer \
     bash-completion podman genisoimage syslinux \
-    createrepo syslinux yum-utils selinux-policy-devel jq wget lorax
+    createrepo syslinux yum-utils selinux-policy-devel jq wget lorax rpm-build
 
 title "Starting osbuild-composer and cockpit services and configuring firewall"
 sudo systemctl enable osbuild-composer.socket --now
 sudo systemctl enable cockpit.socket --now
-sudo firewall-cmd -q --add-service=cockpit
 sudo firewall-cmd -q --add-service=cockpit --permanent
+sudo firewall-cmd --reload
+
+# Temporary workaround until the rhocp-4.12-for-rhel-8-$(uname -i)-rpms repo can be used
+title "Configuring 4.12 beta repo"
+sudo tee /etc/yum.repos.d/rhocp-4.12-el8-beta-$(uname -i)-rpms.repo >/dev/null <<EOF
+[rhocp-4.12-el8-beta-$(uname -i)-rpms]
+name=Beta rhocp-4.12 RPMs for RHEL8
+baseurl=https://mirror.openshift.com/pub/openshift-v4/\$basearch/dependencies/rpms/4.12-el8-beta/
+enabled=1
+gpgcheck=0
+skip_if_unavailable=1
+EOF
 
 title "Done"

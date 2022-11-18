@@ -10,13 +10,13 @@ This repo contains demos of various [MicroShift](https://github.com/openshift/mi
 
 Unless otherwise noted, the demos require you to build a couple of artefacts such as `rpm-ostree` container and ISO installer images. The build process is described below.
 
-Start from a RHEL 8.6 or higher machine (virtual or bare metal) registered via `subscription-manager` and attached to a subscription that includes the OpenShift Container Platform repos. You can add a trial evaluation for OCP at [Red Hat Customer Portal - Product Downloads](https://access.redhat.com/downloads). Running `sudo subscription-manager repos --list-enabled | grep ID` should return something similar to:
+Start from a RHEL 8.7 or higher machine (virtual or bare metal) registered via `subscription-manager` and attached to a subscription that includes the OpenShift Container Platform repos. You can add a trial evaluation for OCP at [Red Hat Customer Portal - Product Downloads](https://access.redhat.com/downloads). Running `sudo subscription-manager repos --list-enabled | grep ID` should return something similar to:
 
     Repo ID:   rhel-8-for-x86_64-appstream-rpms
     Repo ID:   rhel-8-for-x86_64-baseos-rpms
-    Repo ID:   ansible-2.9-for-rhel-8-x86_64-rpms
-    Repo ID:   rhocp-4.11-for-rhel-8-x86_64-rpms
     Repo ID:   fast-datapath-for-rhel-8-x86_64-rpms
+    Repo ID:   rhocp-4.11-for-rhel-8-x86_64-rpms
+    Repo ID:   ansible-2.9-for-rhel-8-x86_64-rpms
 
 Install git if not yet installed and clone the demo repo:
 
@@ -27,9 +27,13 @@ Install ImageBuilder and other build dependencies:
 
     ./scripts/configure-builder
 
-Until MicroShift RPMs are available via the Red Hat CDN, get them according to the [MicroShift project docs](https://github.com/openshift/microshift/blob/main/docs/rpm_packages.md) and place somewhere on disk, then run
+Once MicroShift 4.12 is released, you'll find its RPMs in the official repos on the Red Hat CDN. For now, we will need to build the MicroShift RPMs from source.
 
-    ./scripts/mirror-repos $PATH_TO_MICROSHIFT_RPMS
+    ./scripts/build-latest-rpms
+
+Afterwards, the RPMs are available under `./builds/rpms`. Next, we'll mirror these and other dependencies into local repos to accelerate the image build process.
+
+    ./scripts/mirror-repos ./builds/rpms
 
 Download the OpenShift pull secret from https://console.redhat.com/openshift/downloads#tool-pull-secret and copy it to `$HOME/.pull-secret.json`.
 
