@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+REPOROOT="$(git rev-parse --show-toplevel)"
+APPS=$(cd "${REPOROOT}/apps"; find * -maxdepth 0 -type d | xargs)
+
+title() {
+    echo -e "\E[34m# $1\E[00m";
+}
+
+push_image() {
+    local app="$1"
+
+    pushd "${REPOROOT}/apps/${app}/images" &>/dev/null
+    title "Pushing ${app}"
+    buildah manifest push --all "quay.io/microshift/${app}:latest" "docker://quay.io/microshift/${app}:latest"
+    popd &>/dev/null
+}
+
+for app in ${APPS}; do
+    push_image ${app}
+done

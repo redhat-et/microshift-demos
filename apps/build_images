@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+REPOROOT="$(git rev-parse --show-toplevel)"
+APPS=$(cd "${REPOROOT}/apps"; find * -maxdepth 0 -type d | xargs)
+ARCHS="linux/amd64,linux/arm64"
+
+title() {
+    echo -e "\E[34m# $1\E[00m";
+}
+
+build_image() {
+    local app="$1"
+
+    pushd "${REPOROOT}/apps/${app}/images" &>/dev/null
+    title "Building ${app}"
+    manifestName="quay.io/microshift/${app}:latest"
+    buildah manifest rm "${manifestName}" || true
+    buildah manifest create "${manifestName}"
+    buildah build --platform=${ARCHS} --manifest "${manifestName}"
+    popd &>/dev/null
+}
+
+for app in ${APPS}; do
+    build_image ${app}
+done
