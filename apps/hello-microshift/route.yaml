@@ -1,0 +1,12 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: hello-microshift
+spec:
+  host: hello-microshift.local
+  to:
+    kind: Service
+    name: hello-microshift
+  port:
+    targetPort: 8080
+  wildcardPolicy: None
