@@ -1,0 +1,56 @@
+name = "hello-microshift-demo"
+
+description = ""
+version = "0.0.1"
+modules = []
+groups = []
+
+
+# MicroShift, oc client, and git
+
+[[packages]]
+name = "microshift"
+version = "*"
+
+[[packages]]
+name = "openshift-clients"
+version = "*"
+
+[[packages]]
+name = "git"
+version = "*"
+
+
+# troubleshooting tools
+
+[[packages]]
+name = "iputils"
+version = "*"
+
+[[packages]]
+name = "bind-utils"
+version = "*"
+
+[[packages]]
+name = "net-tools"
+version = "*"
+
+
+# other
+
+[[packages]]
+name = "redhat-release"
+version = "*"
+
+
+# customizations
+
+[customizations.firewall.services]
+enabled = ["ssh", "http"]
+disabled = ["cockpit"]
+
+[customizations.firewall]
+port = ["6443"]
+
+[customizations.services]
+enabled = ["microshift"]
