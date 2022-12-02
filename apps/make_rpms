@@ -1,0 +1,38 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+REPOROOT="$(git rev-parse --show-toplevel)"
+APPS=$(cd "${REPOROOT}/apps"; find * -maxdepth 0 -type d | xargs)
+
+if ! command -v rpmbuild &> /dev/null; then
+    sudo dnf install -y rpmdevtools rpmlint
+fi
+
+title() {
+    echo -e "\E[34m# $1\E[00m";
+}
+
+build_rpm() {
+    local app="$1"
+
+    title "Copying .spec and source tarball for ${app}"
+    specfile="${REPOROOT}/apps/${app}/${app}.spec"
+    version=$(awk '/Version:/ { print $2 }' "${specfile}")
+    cp "${REPOROOT}/apps/${app}/${app}.spec" ~/rpmbuild/SPECS
+    wget -P ~/rpmbuild/SOURCES/ https://github.com/redhat-et/microshift-demos/archive/refs/tags/${app}-v${version}.tar.gz
+
+    title "Building ${app} RPM"
+    rpmbuild -bs ~/rpmbuild/SPECS/${app}.spec
+    rpmbuild -bb ~/rpmbuild/SPECS/${app}.spec
+
+    title "Running linter on ${app} RPM"
+    rpmlint ~/rpmbuild/RPMS/noarch/microshift-${app}-app-*.rpm
+
+    popd &>/dev/null
+}
+
+rpmdev-setuptree
+for app in ${APPS}; do
+    build_rpm ${app}
+done
