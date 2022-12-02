@@ -1,12 +1,11 @@
 lang en_US.UTF-8
 keyboard us
 timezone UTC
-zerombr
 text
 reboot
 
 # Configure network to use DHCP and activate on boot
-network --bootproto=dhcp --device=link --activate --onboot=on
+network --bootproto=dhcp --device=link --activate --onboot=on --hostname=edge.local
 
 # Partition disk with a 1GB boot XFS partition and an LVM volume containing a 8GB+ system root
 # The remainder of the volume will be used by the CSI driver for storing data
@@ -21,7 +20,10 @@ network --bootproto=dhcp --device=link --activate --onboot=on
 #
 zerombr
 clearpart --all --initlabel
-part /boot --fstype=xfs --asprimary --size=1024
+part /boot/efi --fstype=efi --size=200
+part /boot --fstype=xfs --asprimary --size=800
+# Uncomment this line to add a SWAP partition of the recommended size
+#part swap --fstype=swap --recommended
 part pv.01 --grow
 volgroup rhel pv.01
 logvol / --vgname=rhel --fstype=xfs --size=8192 --name=root
@@ -59,7 +61,7 @@ $OCP_PULL_SECRET_CONTENTS
 EOPULLSECRET
 chmod 600 /etc/crio/openshift-pull-secret
 
-# Configure the mandatory firewall rules
+# Configure the mandatory firewall rules that cannot (yet) be configured from blueprint
 firewall-offline-cmd --zone=trusted --add-source=10.42.0.0/16
 firewall-offline-cmd --zone=trusted --add-source=169.254.169.1
 

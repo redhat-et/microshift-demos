@@ -50,7 +50,7 @@ enabled = ["ssh", "http"]
 disabled = ["cockpit"]
 
 [customizations.firewall]
-port = ["6443"]
+port = ["6443/tcp"]
 
 [customizations.services]
 enabled = ["microshift"]

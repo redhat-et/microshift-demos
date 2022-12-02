@@ -59,4 +59,4 @@ version = "*"
 [customizations]
 
 [customizations.services]
-enabled = ["crio", "transmission.timer", "microshift"]
+enabled = ["transmission.timer", "microshift"]
