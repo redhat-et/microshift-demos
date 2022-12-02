@@ -55,12 +55,38 @@ Verify that the application is deployed and the route is accepted:
 Add an entry to `/etc/hosts` to map the application's route (`hello-microshift.local`) to the machine's primary IP:
 
     hostIP=$(ip route get 1.1.1.1 | grep -oP 'src \K\S+')
-    sudo sed -i '/hello-microshift.local/d' /etc/hosts
+    sudo sed -i .bak '/hello-microshift.local/d' /etc/hosts
     echo "${hostIP}  hello-microshift.local" | sudo tee -a /etc/hosts
 
-Now, try `curl`ing the applications route should return the "Hello, MicroShift!" HTML page:
+Now, trying to `curl` the application's route should return the "Hello, MicroShift!" HTML page:
 
     [microshift@edge ~]$ curl http://hello-microshift.local
     <!DOCTYPE html>
     <html>
     ...
+
+### Accessing the cluster and "Hello, MicroShift!" application remotely
+
+Next, let's access the cluster and application from outside the MicroShift machine.
+
+If you're running the MicroShift on a VM _and_ your hypervisor connects instances via NAT, make sure to create port mappings from the hypervisor to guest ports 22 (ssh), 80 (http), and 6443 (K8s API).
+
+Once more, you need to edit `/etc/hosts` to resolve `hello-microshift.local` to the MicroShift machine's IP, then you can `curl` the route and also access the page in your browser:
+
+    [user@core ~]$ curl http://hello-microshift.local
+    <!DOCTYPE html>
+    <html>
+    ...
+
+To remotely access the cluster using the `oc` client, copy the kubeconfig from the MicroShift machine to your local machine. Then update the URL of the `server:` field in the kubeconfig to point to your MicroShift machine:
+
+    mkdir -p ~/.kube/config
+    ssh -o "IdentitiesOnly=yes" -i ./builds/hello-microshift/demo/id_demo microshift@$MACHINE_IP "sudo cat /var/lib/microshift/resources/kubeadmin/kubeconfig" > ~/.kube/config
+    sed -i .bak 's|server: https://127.0.0.1:6443|server: https://hello-microshift.local:6443|' ~/.kube/config
+
+Now you can access the cluster remotely:
+
+    [user@core ~]$ oc get pods -n demo
+    NAME                                READY   STATUS    RESTARTS   AGE
+    hello-microshift-6bdbc6c444-8sjc6   1/1     Running   0          45m
+    hello-microshift-6bdbc6c444-bm5j4   1/1     Running   0          45m
