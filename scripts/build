@@ -141,10 +141,14 @@ pushd "${BUILDDIR}" &>/dev/null
 add_local_mirrors
 shopt -s nullglob
 for source in "${DEMODIR}"/source_*.toml; do
+    # composer-cli doesn't properly handle $basearch vars, so need to render these beforehand
+    rendered_source=${BUILDDIR}/$(basename "${source}")
+    sed "s|\$basearch|$(uname -i)|g" "${source}" > "${rendered_source}"
+
     id="$(grep -Po '^\s?id\s?=\s?"\K[^"]+' "${source}" | head -n 1)"
     title "Adding source '${id}' to builder"
     sudo composer-cli sources delete "${id}" 2>/dev/null || true
-    sudo composer-cli sources add "${source}"
+    sudo composer-cli sources add "${rendered_source}"
 done
 shopt -u nullglob
 
