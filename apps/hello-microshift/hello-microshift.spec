@@ -1,11 +1,13 @@
-Name:           microshift-hello-microshift-app
+%global app hello-microshift
+
+Name:           microshift-demos-%{app}
 Version:        0.0.1
 Release:        1%{?dist}
 Summary:        Manifests of the "Hello, MicroShift!" app
 
 License:        ASL 2.0
-URL:            https://github.com/redhat-et/microshift-demos/tree/main/apps/hello-microshift
-Source0:        https://github.com/redhat-et/microshift-demos/archive/refs/tags/hello-microshift-v%{version}.tar.gz
+URL:            https://github.com/redhat-et/microshift-demos/tree/main/apps/%{app}
+Source0:        https://github.com/redhat-et/microshift-demos/archive/refs/tags/%{app}-v%{version}.tar.gz
 BuildArch:      noarch
 
 %description
@@ -13,8 +15,8 @@ Installs the manifests of the "Hello, MicroShift!" app into MicroShift's
 auto-manifest folder.
 
 
-%global tardir microshift-demos-hello-microshift-v%{version}
-%global source %{_builddir}/%{tardir}/apps/hello-microshift
+%global tardir microshift-demos-%{app}-v%{version}
+%global source %{_builddir}/%{tardir}/apps/%{app}
 %global manifestdir /etc/microshift/manifests
 
 %prep
