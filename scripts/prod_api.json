@@ -1,0 +1,1341 @@
+{
+  "components": {
+    "schemas": {
+      "AWSEC2Clone": {
+        "properties": {
+          "region": {
+            "description": "A region as described in\nhttps://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html#concepts-regions\n",
+            "type": "string"
+          },
+          "share_with_accounts": {
+            "description": "An array of AWS account IDs as described in\nhttps://docs.aws.amazon.com/IAM/latest/UserGuide/console_account-alias.html\n",
+            "example": [
+              "123456789012"
+            ],
+            "items": {
+              "pattern": "^[0-9]{12}$",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "region"
+        ],
+        "type": "object"
+      },
+      "AWSS3UploadRequestOptions": {
+        "type": "object"
+      },
+      "AWSS3UploadStatus": {
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "type": "object"
+      },
+      "AWSUploadRequestOptions": {
+        "properties": {
+          "share_with_accounts": {
+            "example": [
+              "123456789012"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "share_with_accounts"
+        ],
+        "type": "object"
+      },
+      "AWSUploadStatus": {
+        "properties": {
+          "ami": {
+            "example": "ami-0c830793775595d4b",
+            "type": "string"
+          },
+          "region": {
+            "example": "eu-west-1",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ami",
+          "region"
+        ],
+        "type": "object"
+      },
+      "ArchitectureItem": {
+        "properties": {
+          "arch": {
+            "example": "x86_64",
+            "type": "string"
+          },
+          "image_types": {
+            "items": {
+              "example": "qcow2",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "arch",
+          "image_types"
+        ],
+        "type": "object"
+      },
+      "Architectures": {
+        "items": {
+          "$ref": "#/components/schemas/ArchitectureItem"
+        },
+        "type": "array"
+      },
+      "AzureUploadRequestOptions": {
+        "properties": {
+          "image_name": {
+            "description": "Name of the created image.\nMust begin with a letter or number, end with a letter, number or underscore, and may contain only letters, numbers, underscores, periods, or hyphens.\nThe total length is limited to 60 characters.\n",
+            "example": "LinuxImage",
+            "maxLength": 60,
+            "minLength": 1,
+            "pattern": "(^[a-zA-Z0-9]$)|(^[a-zA-Z0-9][a-zA-Z0-9_\\.-]*[a-zA-Z0-9_]$)",
+            "type": "string"
+          },
+          "resource_group": {
+            "description": "Name of the resource group where the image should be uploaded.\n",
+            "example": "ToucanResourceGroup",
+            "type": "string"
+          },
+          "subscription_id": {
+            "description": "ID of subscription where the image should be uploaded.\n",
+            "example": "4e5d8b2c-ab24-4413-90c5-612306e809e2",
+            "type": "string"
+          },
+          "tenant_id": {
+            "description": "ID of the tenant where the image should be uploaded. This link explains how\nto find it in the Azure Portal:\nhttps://docs.microsoft.com/en-us/azure/active-directory/fundamentals/active-directory-how-to-find-tenant\n",
+            "example": "5c7ef5b6-1c3f-4da0-a622-0b060239d7d7",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "subscription_id",
+          "resource_group"
+        ],
+        "type": "object"
+      },
+      "AzureUploadStatus": {
+        "properties": {
+          "image_name": {
+            "example": "my-image",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image_name"
+        ],
+        "type": "object"
+      },
+      "CloneRequest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AWSEC2Clone"
+          }
+        ]
+      },
+      "CloneResponse": {
+        "properties": {
+          "id": {
+            "example": "123e4567-e89b-12d3-a456-426655440000",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "ClonesResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ClonesResponseItem"
+            },
+            "type": "array"
+          },
+          "links": {
+            "properties": {
+              "first": {
+                "example": "/api/image-builder/v1/composes?limit=10&offset=0",
+                "type": "string"
+              },
+              "last": {
+                "example": "/api/image-builder/v1/composes?limit=10&offset=10",
+                "type": "string"
+              }
+            },
+            "required": [
+              "first",
+              "last"
+            ],
+            "type": "object"
+          },
+          "meta": {
+            "properties": {
+              "count": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "count"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "meta",
+          "links",
+          "data"
+        ]
+      },
+      "ClonesResponseItem": {
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "request": {}
+        },
+        "required": [
+          "id",
+          "request",
+          "created_at"
+        ]
+      },
+      "ComposeMetadata": {
+        "properties": {
+          "ostree_commit": {
+            "description": "ID (hash) of the built commit",
+            "type": "string"
+          },
+          "packages": {
+            "description": "Package list including NEVRA",
+            "items": {
+              "$ref": "#/components/schemas/PackageMetadata"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "ComposeRequest": {
+        "properties": {
+          "customizations": {
+            "$ref": "#/components/schemas/Customizations"
+          },
+          "distribution": {
+            "$ref": "#/components/schemas/Distributions"
+          },
+          "image_name": {
+            "example": "MyImageName",
+            "maxLength": 100,
+            "type": "string"
+          },
+          "image_requests": {
+            "description": "Array of exactly one image request. Having more image requests in one compose is currently not supported.\n",
+            "items": {
+              "$ref": "#/components/schemas/ImageRequest"
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "distribution",
+          "image_requests"
+        ],
+        "type": "object"
+      },
+      "ComposeResponse": {
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "ComposeStatus": {
+        "properties": {
+          "image_status": {
+            "$ref": "#/components/schemas/ImageStatus"
+          }
+        },
+        "required": [
+          "image_status"
+        ]
+      },
+      "ComposeStatusError": {
+        "properties": {
+          "details": {},
+          "id": {
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reason"
+        ]
+      },
+      "ComposesResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ComposesResponseItem"
+            },
+            "type": "array"
+          },
+          "links": {
+            "properties": {
+              "first": {
+                "example": "/api/image-builder/v1/composes?limit=10&offset=0",
+                "type": "string"
+              },
+              "last": {
+                "example": "/api/image-builder/v1/composes?limit=10&offset=10",
+                "type": "string"
+              }
+            },
+            "required": [
+              "first",
+              "last"
+            ],
+            "type": "object"
+          },
+          "meta": {
+            "properties": {
+              "count": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "count"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "meta",
+          "links",
+          "data"
+        ]
+      },
+      "ComposesResponseItem": {
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "image_name": {
+            "type": "string"
+          },
+          "request": {}
+        },
+        "required": [
+          "id",
+          "request",
+          "created_at"
+        ]
+      },
+      "Customizations": {
+        "properties": {
+          "filesystem": {
+            "items": {
+              "$ref": "#/components/schemas/Filesystem"
+            },
+            "type": "array"
+          },
+          "packages": {
+            "example": [
+              "postgresql"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "payload_repositories": {
+            "items": {
+              "$ref": "#/components/schemas/Repository"
+            },
+            "type": "array"
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/Subscription"
+          },
+          "users": {
+            "description": "list of users that a customer can add, also specifying their respective groups and SSH keys",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "DistributionItem": {
+        "properties": {
+          "description": {
+            "example": "Red Hat Enterprise Linux (RHEL) 8.4",
+            "type": "string"
+          },
+          "name": {
+            "example": "rhel-84",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "type": "object"
+      },
+      "Distributions": {
+        "enum": [
+          "rhel-8",
+          "rhel-84",
+          "rhel-85",
+          "rhel-86",
+          "rhel-9",
+          "rhel-90",
+          "centos-8",
+          "centos-9",
+          "fedora-35",
+          "fedora-36",
+          "fedora-37",
+          "fedora-38"
+        ],
+        "type": "string"
+      },
+      "DistributionsResponse": {
+        "items": {
+          "$ref": "#/components/schemas/DistributionItem"
+        },
+        "type": "array"
+      },
+      "Filesystem": {
+        "properties": {
+          "min_size": {
+            "example": 1024,
+            "x-go-type": "uint64"
+          },
+          "mountpoint": {
+            "example": "/var",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mountpoint",
+          "min_size"
+        ],
+        "type": "object"
+      },
+      "GCPUploadRequestOptions": {
+        "properties": {
+          "share_with_accounts": {
+            "description": "List of valid Google accounts to share the imported Compute Node image with.\nEach string must contain a specifier of the account type. Valid formats are:\n  - 'user:{emailid}': An email address that represents a specific\n    Google account. For example, 'alice@example.com'.\n  - 'serviceAccount:{emailid}': An email address that represents a\n    service account. For example, 'my-other-app@appspot.gserviceaccount.com'.\n  - 'group:{emailid}': An email address that represents a Google group.\n    For example, 'admins@example.com'.\n  - 'domain:{domain}': The G Suite domain (primary) that represents all\n    the users of that domain. For example, 'google.com' or 'example.com'.\n    If not specified, the imported Compute Node image is not shared with any\n    account.\n",
+            "example": [
+              "user:alice@example.com",
+              "serviceAccount:my-other-app@appspot.gserviceaccount.com",
+              "group:admins@example.com",
+              "domain:example.com"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "share_with_accounts"
+        ],
+        "type": "object"
+      },
+      "GCPUploadStatus": {
+        "properties": {
+          "image_name": {
+            "example": "my-image",
+            "type": "string"
+          },
+          "project_id": {
+            "example": "ascendant-braid-303513",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "image_name"
+        ],
+        "type": "object"
+      },
+      "HTTPError": {
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "detail"
+        ]
+      },
+      "HTTPErrorList": {
+        "properties": {
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/HTTPError"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "errors"
+        ]
+      },
+      "ImageRequest": {
+        "properties": {
+          "architecture": {
+            "description": "CPU architecture of the image, only x86_64 is currently supported.\n",
+            "enum": [
+              "x86_64"
+            ],
+            "type": "string"
+          },
+          "image_type": {
+            "$ref": "#/components/schemas/ImageTypes"
+          },
+          "ostree": {
+            "$ref": "#/components/schemas/OSTree"
+          },
+          "upload_request": {
+            "$ref": "#/components/schemas/UploadRequest"
+          }
+        },
+        "required": [
+          "architecture",
+          "image_type",
+          "upload_request"
+        ]
+      },
+      "ImageStatus": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ComposeStatusError"
+          },
+          "status": {
+            "enum": [
+              "success",
+              "failure",
+              "pending",
+              "building",
+              "uploading",
+              "registering"
+            ],
+            "example": "success",
+            "type": "string"
+          },
+          "upload_status": {
+            "$ref": "#/components/schemas/UploadStatus"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "ImageTypes": {
+        "enum": [
+          "aws",
+          "azure",
+          "edge-commit",
+          "edge-installer",
+          "gcp",
+          "guest-image",
+          "image-installer",
+          "vsphere",
+          "ami",
+          "rhel-edge-commit",
+          "rhel-edge-installer",
+          "vhd"
+        ],
+        "type": "string"
+      },
+      "OSTree": {
+        "properties": {
+          "parent": {
+            "description": "Can be either a commit (example: 02604b2da6e954bd34b8b82a835e5a77d2b60ffa), or a branch-like reference (example: rhel/8/x86_64/edge)\n",
+            "example": "rhel/8/x86_64/edge",
+            "type": "string"
+          },
+          "ref": {
+            "example": "rhel/8/x86_64/edge",
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Package": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "summary"
+        ]
+      },
+      "PackageMetadata": {
+        "properties": {
+          "arch": {
+            "type": "string"
+          },
+          "epoch": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "release": {
+            "type": "string"
+          },
+          "sigmd5": {
+            "type": "string"
+          },
+          "signature": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "version",
+          "release",
+          "arch",
+          "sigmd5"
+        ]
+      },
+      "PackagesResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Package"
+            },
+            "type": "array"
+          },
+          "links": {
+            "properties": {
+              "first": {
+                "example": "/api/image-builder/v1/packages?limit=10&offset=0&distribution....",
+                "type": "string"
+              },
+              "last": {
+                "example": "/api/image-builder/v1/packages?limit=10&offset=10&distribution....",
+                "type": "string"
+              }
+            },
+            "required": [
+              "first",
+              "last"
+            ],
+            "type": "object"
+          },
+          "meta": {
+            "properties": {
+              "count": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "count"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "meta",
+          "links",
+          "data"
+        ],
+        "type": "object"
+      },
+      "Readiness": {
+        "properties": {
+          "readiness": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "readiness"
+        ],
+        "type": "object"
+      },
+      "Repository": {
+        "properties": {
+          "baseurl": {
+            "example": "https://cdn.redhat.com/content/dist/rhel8/8/x86_64/baseos/os/",
+            "format": "uri",
+            "type": "string"
+          },
+          "check_gpg": {
+            "type": "boolean"
+          },
+          "gpgkey": {
+            "type": "string"
+          },
+          "ignore_ssl": {
+            "type": "boolean"
+          },
+          "metalink": {
+            "example": "https://mirrors.fedoraproject.org/metalink?repo=fedora-32&arch=x86_64",
+            "format": "uri",
+            "type": "string"
+          },
+          "mirrorlist": {
+            "example": "http://mirrorlist.centos.org/?release=8-stream&arch=aarch64&repo=BaseOS",
+            "format": "uri",
+            "type": "string"
+          },
+          "rhsm": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "rhsm"
+        ],
+        "type": "object"
+      },
+      "Subscription": {
+        "properties": {
+          "activation-key": {
+            "example": "my-secret-key",
+            "format": "password",
+            "type": "string"
+          },
+          "base-url": {
+            "example": "http://cdn.redhat.com/",
+            "type": "string"
+          },
+          "insights": {
+            "example": true,
+            "type": "boolean"
+          },
+          "organization": {
+            "example": 2040324,
+            "type": "integer"
+          },
+          "server-url": {
+            "example": "subscription.rhsm.redhat.com",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization",
+          "activation-key",
+          "server-url",
+          "base-url",
+          "insights"
+        ],
+        "type": "object"
+      },
+      "UploadRequest": {
+        "properties": {
+          "options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AWSUploadRequestOptions"
+              },
+              {
+                "$ref": "#/components/schemas/AWSS3UploadRequestOptions"
+              },
+              {
+                "$ref": "#/components/schemas/GCPUploadRequestOptions"
+              },
+              {
+                "$ref": "#/components/schemas/AzureUploadRequestOptions"
+              }
+            ]
+          },
+          "type": {
+            "$ref": "#/components/schemas/UploadTypes"
+          }
+        },
+        "required": [
+          "type",
+          "options"
+        ],
+        "type": "object"
+      },
+      "UploadStatus": {
+        "properties": {
+          "options": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AWSUploadStatus"
+              },
+              {
+                "$ref": "#/components/schemas/AWSS3UploadStatus"
+              },
+              {
+                "$ref": "#/components/schemas/GCPUploadStatus"
+              },
+              {
+                "$ref": "#/components/schemas/AzureUploadStatus"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "success",
+              "failure",
+              "pending",
+              "running"
+            ],
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/UploadTypes"
+          }
+        },
+        "required": [
+          "status",
+          "type",
+          "options"
+        ]
+      },
+      "UploadTypes": {
+        "enum": [
+          "aws",
+          "gcp",
+          "azure",
+          "aws.s3"
+        ],
+        "type": "string"
+      },
+      "User": {
+        "properties": {
+          "name": {
+            "example": "user1",
+            "type": "string"
+          },
+          "ssh_key": {
+            "example": "ssh-rsa AAAAB3NzaC1",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "ssh_key"
+        ],
+        "type": "object"
+      },
+      "Version": {
+        "properties": {
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ]
+      }
+    }
+  },
+  "info": {
+    "description": "Service that relays image build requests",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "title": "Image-builder service",
+    "version": "1.0"
+  },
+  "openapi": "3.0.1",
+  "paths": {
+    "/architectures/{distribution}": {
+      "get": {
+        "operationId": "GetArchitectures",
+        "parameters": [
+          {
+            "description": "distribution for which to look up available architectures",
+            "example": "rhel-84",
+            "in": "path",
+            "name": "distribution",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Architectures"
+                }
+              }
+            },
+            "description": "a list of available architectures and their associated image types"
+          }
+        },
+        "summary": "get the architectures and their image types available for a given distribution"
+      }
+    },
+    "/clones/{id}": {
+      "get": {
+        "description": "status of a clone",
+        "operationId": "GetCloneStatus",
+        "parameters": [
+          {
+            "description": "Id of clone status to get",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "example": "123e4567-e89b-12d3-a456-426655440000",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadStatus"
+                }
+              }
+            },
+            "description": "clone status"
+          }
+        },
+        "summary": "get status of a compose clone"
+      }
+    },
+    "/compose": {
+      "post": {
+        "description": "compose image",
+        "operationId": "ComposeImage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComposeRequest"
+              }
+            }
+          },
+          "description": "details of image to be composed",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComposeResponse"
+                }
+              }
+            },
+            "description": "compose has started"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPErrorList"
+                }
+              }
+            },
+            "description": "the compose request is malformed"
+          }
+        },
+        "summary": "compose image"
+      }
+    },
+    "/composes": {
+      "get": {
+        "operationId": "GetComposes",
+        "parameters": [
+          {
+            "description": "max amount of composes, default 100",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "composes page offset, default 0",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComposesResponse"
+                }
+              }
+            },
+            "description": "a list of composes"
+          }
+        },
+        "summary": "get a collection of previous compose requests for the logged in user"
+      }
+    },
+    "/composes/{composeId}": {
+      "get": {
+        "description": "status of an image compose",
+        "operationId": "GetComposeStatus",
+        "parameters": [
+          {
+            "description": "Id of compose status to get",
+            "in": "path",
+            "name": "composeId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComposeStatus"
+                }
+              }
+            },
+            "description": "compose status"
+          }
+        },
+        "summary": "get status of an image compose"
+      }
+    },
+    "/composes/{composeId}/clone": {
+      "post": {
+        "description": "Clones a compose. Only composes with the 'aws' image type currently support cloning.\n",
+        "operationId": "CloneCompose",
+        "parameters": [
+          {
+            "description": "Id of compose to clone",
+            "in": "path",
+            "name": "composeId",
+            "required": true,
+            "schema": {
+              "example": "123e4567-e89b-12d3-a456-426655440000",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloneRequest"
+              }
+            }
+          },
+          "description": "details of the new clone",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloneResponse"
+                }
+              }
+            },
+            "description": "cloning has started"
+          }
+        },
+        "summary": "clone a compose"
+      }
+    },
+    "/composes/{composeId}/clones": {
+      "get": {
+        "description": "Returns a list of all the clones which were started for a compose\n",
+        "operationId": "GetComposeClones",
+        "parameters": [
+          {
+            "description": "Id of compose to get the clones of",
+            "in": "path",
+            "name": "composeId",
+            "required": true,
+            "schema": {
+              "example": "123e4567-e89b-12d3-a456-426655440000",
+              "type": "string"
+            }
+          },
+          {
+            "description": "max amount of composes, default 100",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "composes page offset, default 0",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClonesResponse"
+                }
+              }
+            },
+            "description": "compose clones"
+          }
+        },
+        "summary": "get clones of a compose"
+      }
+    },
+    "/composes/{composeId}/metadata": {
+      "get": {
+        "description": "metadata for an image compose",
+        "operationId": "GetComposeMetadata",
+        "parameters": [
+          {
+            "description": "Id of compose metadata to get",
+            "in": "path",
+            "name": "composeId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComposeMetadata"
+                }
+              }
+            },
+            "description": "compose metadata"
+          }
+        },
+        "summary": "get metadata of an image compose"
+      }
+    },
+    "/distributions": {
+      "get": {
+        "operationId": "GetDistributions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DistributionsResponse"
+                }
+              }
+            },
+            "description": "a list of available distributions"
+          }
+        },
+        "summary": "get the available distributions"
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "operationId": "GetOpenapiJson",
+        "responses": {
+          "200": {
+            "description": "returns this document"
+          }
+        },
+        "summary": "get the openapi json specification",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/packages": {
+      "get": {
+        "operationId": "GetPackages",
+        "parameters": [
+          {
+            "description": "distribution to look up packages for",
+            "in": "query",
+            "name": "distribution",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Distributions"
+            }
+          },
+          {
+            "description": "architecture to look up packages for",
+            "in": "query",
+            "name": "architecture",
+            "required": true,
+            "schema": {
+              "enum": [
+                "x86_64"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "packages to look for",
+            "in": "query",
+            "name": "search",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "max amount of packages, default 100",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "packages page offset, default 0",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackagesResponse"
+                }
+              }
+            },
+            "description": "a list of packages"
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "GetReadiness",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness"
+                }
+              }
+            },
+            "description": "readiness"
+          }
+        },
+        "summary": "return the readiness"
+      }
+    },
+    "/version": {
+      "get": {
+        "description": "get the service version",
+        "operationId": "GetVersion",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            },
+            "description": "a service version"
+          }
+        },
+        "summary": "get the service version"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/image-builder/v1"
+    },
+    {
+      "url": "/api/image-builder/v1.0"
+    },
+    {
+      "url": "/api/image-builder/v1.0"
+    }
+  ]
+}
