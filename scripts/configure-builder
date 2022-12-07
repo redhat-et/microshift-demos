@@ -29,20 +29,20 @@ LIST2REMOVE=$(rpm -qa | egrep '^rpm-ostree' || true)
 sudo rm -rf /var/lib/osbuild-composer || true
 sudo rm -rf /var/cache/{osbuild-composer,osbuild-worker} || true
 
-# Install the experimental rpm-ostree packages
-sudo wget -P /etc/yum.repos.d https://copr.fedorainfracloud.org/coprs/walters/ostreerhel8/repo/centos-stream-8/walters-ostreerhel8-centos-stream-8.repo
-
 title "Installing ImageBuilder tools"
 sudo dnf install -y \
     osbuild-composer composer-cli cockpit-composer \
     bash-completion podman genisoimage syslinux \
-    createrepo syslinux yum-utils selinux-policy-devel jq wget lorax rpm-build
+    createrepo syslinux yum-utils selinux-policy-devel jq wget lorax rpm-build golang
 
 title "Starting osbuild-composer and cockpit services and configuring firewall"
 sudo systemctl enable osbuild-composer.socket --now
 sudo systemctl enable cockpit.socket --now
 sudo firewall-cmd -q --add-service=cockpit --permanent
 sudo firewall-cmd --reload
+
+# Install the experimental rpm-ostree packages
+sudo wget -P /etc/yum.repos.d https://copr.fedorainfracloud.org/coprs/walters/ostreerhel8/repo/centos-stream-8/walters-ostreerhel8-centos-stream-8.repo
 
 # Temporary workaround until the rhocp-4.12-for-rhel-8-$(uname -i)-rpms repo can be used
 title "Configuring 4.12 beta repo"
