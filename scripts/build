@@ -7,6 +7,14 @@ REPOROOT="$(git rev-parse --show-toplevel)"
 DEMOS=$(cd "${REPOROOT}/demos"; find * -maxdepth 1 -type d | xargs)
 BUILD_ARCH=$(uname -i)
 
+DISTRO=$(grep "^ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
+[ "${DISTRO}" == "rhel" ] || fatal "Error: Must run on a RHEL system (have: ${DISTRO})."
+DISTRO_VERSION=$(grep "^VERSION_ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
+[[ "$DISTRO_VERSION" =~ ^([0-9]{1,})\.([0-9]{1,})$ ]] || fatal "Error: Invalid OS version string (have: ${DISTRO_VERSION})"
+DISTRO_VERSION_MAJOR=${BASH_REMATCH[1]}
+DISTRO_VERSION_MINOR=${BASH_REMATCH[2]}
+[ ${DISTRO_VERSION_MAJOR} -eq 8 -a ${DISTRO_VERSION_MINOR} -ge 7 ] || fatal "Error: Must run on RHEL system >= 8.7 and <9.0 (have: ${DISTRO_VERSION}."
+
 usage() {
     local error_message="$1"
 
@@ -28,7 +36,6 @@ BUILDDIR="${REPOROOT}/builds/${DEMONAME}"
 MIRRORDIR="${REPOROOT}/builds/mirror"
 
 PRIMARY_IP=$(ip route get 8.8.8.8 | head -1 | cut -d' ' -f 7)
-BUILD_ARCH=$(uname -i)
 
 SSH_PUBLIC_KEY_FILE=${SSH_PUBLIC_KEY_FILE:-${BUILDDIR}/id_demo.pub}
 PASSWORD_FILE=${PASSWORD_FILE:-${BUILDDIR}/password}
@@ -60,6 +67,64 @@ EOF
         sudo composer-cli sources delete "${name}" 2>/dev/null || true
         sudo composer-cli sources add "${MIRRORDIR}/source_${name}.toml"
     done
+}
+
+add_extra_repos() {
+    shopt -s nullglob
+    # Add extra repos defined as osbuild-composer sources directly
+    for source in "${DEMODIR}"/source_*.toml; do
+        title "Adding source '${name}' to builder"
+        # osbuild-composer do not correctly handle baseurls with yum ariables
+        # like $basearch, so we need to render these vars beforehand
+        rendered_source=${BUILDDIR}/$(basename "${source}")
+        sed "s|\$basearch|$(uname -i)|g" "${source}" > "${rendered_source}"
+
+        id="$(grep -Po '^\s?id\s?=\s?"\K[^"]+' "${source}" | head -n 1)"
+        title "Adding source '${id}' to builder"
+        sudo composer-cli sources delete "${id}" 2>/dev/null || true
+        sudo composer-cli sources add "${rendered_source}"
+    done
+
+    # As osbuild-composer sources do not support GPG keys, we add an alternative
+    # path to add repos, which works-around this limitation by adding 3rd-party
+    # repos as system repos.
+    default_repofile="/usr/share/osbuild-composer/repositories/${DISTRO}-${DISTRO_VERSION//\./}.json"
+    override_repofile="/etc/osbuild-composer/repositories/$(basename "${default_repofile}")"
+    working_repofile="${BUILDDIR}/$(basename "${default_repofile}")"
+    cp "${default_repofile}" "${working_repofile}"
+    for source in "${DEMODIR}"/source_*.repo; do
+        name=$(basename "${source}")
+        title "Adding repo '${name}' to system repos"
+
+        baseurl=$(grep -oP "^\s?baseurl\s?=\s?\K.+" "${source}")
+        gpgkeyurl=$(grep -oP "^\s?gpgkey\s?=\s?\K.+" "${source}")
+        gpgcheck=$(grep -oP "^\s?gpgcheck\s?=\s?\K.+" "${source}")
+
+        gpgkey=""
+        check_gpg="false"
+        if [[ "${gpgcheck}" == "1" && ! -z "${gpgkeyurl}" ]]; then
+            gpgkey=$(curl -sL "${gpgkeyurl}")
+            gpgkey=${gpgkey//$'\n'/\\n}
+            check_gpg="true"
+        fi
+
+        for arch in x86_64 aarch64; do
+            baseurl_rendered=${baseurl//\$basearch/${arch}}
+            baseurl_rendered=${baseurl_rendered//\$releasever/${DISTRO_VERSION_MAJOR}}
+            jq ".${arch} += [{ \
+               \"name\": \"${name}\", \
+               \"baseurl\": \"${baseurl_rendered}\", \
+               \"gpgkey\": \"${gpgkey}\", \
+               \"check_gpg\": ${check_gpg} \
+               }]" "${working_repofile}" > "${working_repofile}.tmp"
+            mv "${working_repofile}.tmp" "${working_repofile}"
+        done
+        sudo cp "${working_repofile}" "${override_repofile}"
+    done
+    shopt -u nullglob
+
+    title "Restarting osbuild-composer service"
+    sudo systemctl restart osbuild-composer.service
 }
 
 load_blueprint() {
@@ -139,18 +204,7 @@ mkdir -p "${BUILDDIR}"
 pushd "${BUILDDIR}" &>/dev/null
 
 add_local_mirrors
-shopt -s nullglob
-for source in "${DEMODIR}"/source_*.toml; do
-    # composer-cli doesn't properly handle $basearch vars, so need to render these beforehand
-    rendered_source=${BUILDDIR}/$(basename "${source}")
-    sed "s|\$basearch|$(uname -i)|g" "${source}" > "${rendered_source}"
-
-    id="$(grep -Po '^\s?id\s?=\s?"\K[^"]+' "${source}" | head -n 1)"
-    title "Adding source '${id}' to builder"
-    sudo composer-cli sources delete "${id}" 2>/dev/null || true
-    sudo composer-cli sources add "${rendered_source}"
-done
-shopt -u nullglob
+add_extra_repos
 
 # Build images from blueprints in alphabetical order of file names.
 # Assumes files are named following the pattern "${SOME_NAME}_v${SOME_VERSION}.toml".
