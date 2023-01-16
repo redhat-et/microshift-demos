@@ -2,33 +2,25 @@
 
 set -e -o pipefail
 
-# This script is used to build the latest MicroShift RPMs
+title() { echo -e "\E[34m# $1\E[00m"; }
+fatal() { echo -e "\E[31mError: $1\E[00m"; exit 1; }
+
 
 REPOROOT="$(git rev-parse --show-toplevel)"
-RPMDIR="${REPOROOT}/builds/rpms"
+MICROSHIFT_RPM_DIR="${REPOROOT}/builds/rpms"
 
-title() {
-    echo -e "\E[34m# $1\E[00m";
-}
-
-mkdir -p "${RPMDIR}"
 
 title "Cloning MicroShift repo"
 git clone https://github.com/openshift/microshift.git
-pushd microshift &>/dev/null
-git checkout e897168a018705614ea1660d1bac762093641be0 # pin to a known commit so we can add matching image pullspecs to blueprints
 
 title "Building MicroShift RPMs"
+pushd microshift &>/dev/null
 make rpm
+popd &>/dev/null
 
 title "Copying RPMs to ${RPMDIR}"
-cp _output/rpmbuild/RPMS/*/*.rpm "${RPMDIR}"
-
-# Create RPM repository
-title "Creating RPM repository"
-createrepo "${RPMDIR}"
-
-popd &>/dev/null
+mkdir -p "${MICROSHIFT_RPM_DIR}"
+cp _output/rpmbuild/RPMS/*/*.rpm "${MICROSHIFT_RPM_DIR}"
 
 title "Cleaning up"
 rm -rf microshift

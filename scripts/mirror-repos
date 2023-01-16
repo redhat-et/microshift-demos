@@ -2,74 +2,110 @@
 
 set -e -o pipefail
 
+title() { echo -e "\E[34m# $1\E[00m"; }
+fatal() { echo -e "\E[31mError: $1\E[00m"; exit 1; }
+
+
+MICROSHIFT_VERSION="${MICROSHIFT_VERSION:-4.12}"
+MICROSHIFT_BETA="${MICROSHIFT_BETA:-true}"
+
 REPOROOT="$(git rev-parse --show-toplevel)"
-MIRRORDIR="${REPOROOT}/builds/mirror"
-BUILD_ARCH=$(uname -i)
+MIRROR_DIR="/var/repos/microshift-local"
+MICROSHIFT_RPM_DIR="${REPOROOT}/builds/rpms"
 
-usage() {
-    local error_message="$1"
-
-    if [ -n "$error_message" ]; then
-        echo "ERROR: $error_message"
-        echo
-    fi
-
-    echo "Usage: $(basename $0) <path_or_url_to_MicroShift_RPMs>"
-    exit 1
-}
-
-title() {
-    echo -e "\E[34m# $1\E[00m";
-}
-
-if [ $# -ne 1 ] ; then
-    usage "Missing path or URL to MicroSHift RPMs."
-fi
-MICROSHIFT_RPM_SOURCE=$(realpath $1)
+DISTRO=$(grep "^ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
+DISTRO_VERSION=$(grep "^VERSION_ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
+[[ "$DISTRO_VERSION" =~ ^([0-9]{1,})\.([0-9]{1,})$ ]] || fatal "Invalid OS version string (have: ${DISTRO_VERSION})"
+DISTRO_VERSION_MAJOR=${BASH_REMATCH[1]}
+DISTRO_VERSION_MINOR=${BASH_REMATCH[2]}
 
 
-mkdir -p "${MIRRORDIR}"
-pushd "${MIRRORDIR}" &>/dev/null
+# Verify we are on a supported distro.
+case "${DISTRO}" in
+    rhel)
+        # Verify we are on a supported version.
+        [ "${DISTRO_VERSION_MAJOR}" -ge 8 ] || fatal "RHEL version must be >= 8.7 (have: ${DISTRO_VERSION})."
+        [ "${DISTRO_VERSION_MINOR}" -ge 7 ] || fatal "RHEL version must be >= 8.7 (have: ${DISTRO_VERSION})."
+        ;;
 
-title "Downloading MicroShift RPMs"
-# Copy MicroShift RPM packages
-rm -rf microshift-local 2>/dev/null || true
-if [[ "${MICROSHIFT_RPM_SOURCE}" == http* ]] ; then
-    wget -q -nd -r -L -P microshift-local -A rpm "${MICROSHIFT_RPM_SOURCE}"
-else
-    cp -TR "${MICROSHIFT_RPM_SOURCE}" microshift-local
-fi
-# Exit if no RPM packages were found
-if [ $(find microshift-local -name '*.rpm' | wc -l) -eq 0 ] ; then
-    echo "No RPM packages were found at '${MICROSHIFT_RPM_SOURCE}'. Exiting..."
-    exit 1
-fi
-title "Creating local MicroShift repo"
-createrepo microshift-local >/dev/null
+    *)
+        fatal "\"${DISTRO}\" is not a supported distribution."
+        ;;
+esac
 
-title "Mirror OpenShift repo"
-# Download openshift local RPM packages (noarch for python and selinux packages)
-rm -rf openshift-local 2>/dev/null || true
-reposync -n -a ${BUILD_ARCH} -a noarch --download-path openshift-local \
-            --repo=fast-datapath-for-rhel-8-${BUILD_ARCH}-rpms \
-            --repo=rhocp-4.12-el8-beta-${BUILD_ARCH}-rpms \
-            >/dev/null
+# Create an empty mirror repo dir.
+sudo rm -rf "${MIRROR_DIR}" 2>/dev/null && sudo mkdir -p "${MIRROR_DIR}"
+
+# Configure the right repos for this distro, version, and release channel
+repos=""
+case "${DISTRO}" in
+    rhel)
+        # Configure MicroShift release or beta repos.
+        if [ "${MICROSHIFT_BETA}" = true ]; then
+            microshift_repo="rhocp-${MICROSHIFT_VERSION}-beta-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
+            title "Configuring ${microshift_repo} repo"
+            sudo subscription-manager repos --disable "rhocp-${MICROSHIFT_VERSION}-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
+            sudo tee /etc/yum.repos.d/microshift-beta.repo > /dev/null <<EOF
+[${microshift_repo}]
+name=MicroShift beta repo
+baseurl=https://mirror.openshift.com/pub/openshift-v4/\$basearch/dependencies/rpms/${MICROSHIFT_VERSION}-el${DISTRO_VERSION_MAJOR}-beta/
+enabled=1
+gpgcheck=1
+skip_if_unavailable=0
+EOF
+            # Import Red Hat public keys to allow RPM GPG check (not necessary if a system is registered)
+            if ! sudo subscription-manager status >& /dev/null ; then
+                sudo rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-*
+            fi
+        else
+            microshift_repo="rhocp-${MICROSHIFT_VERSION}-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
+            title "Configuring ${microshift_repo} repo"
+            sudo subscription-manager repos --enable "${microshift_repo}"
+            sudo rm -f /etc/yum.repos.d/microshift-beta.repo
+        fi
+        repos="${repos} ${microshift_repo}"
+
+        sudo subscription-manager repos --enable "fast-datapath-for-rhel-8-$(uname -i)-rpms"
+        repos="${repos} fast-datapath-for-rhel-8-$(uname -i)-rpms"
+        ;;
+
+    *)
+        fatal "\"${DISTRO}\" is not a supported distribution."
+        ;;
+esac
+
+# Sync RPMs to mirror repo
+title "Downloading RPMs into mirror repo"
+for r in ${repos}; do
+    sudo reposync --arch="$(uname -i)" --arch=noarch --gpgcheck --newest-only \
+        --download-path "${MIRROR_DIR}" --repo="${r}"
+done
 
 # Remove coreos packages to avoid conflicts
-find openshift-local -name \*coreos\* -exec rm -f {} \;
-# Exit if no RPM packages were found
-if [ $(find openshift-local -name '*.rpm' | wc -l) -eq 0 ] ; then
-    echo "No RPM packages were found at the 'rhocp-4.11-for-rhel-8-${BUILD_ARCH}-rpms' repository. Exiting..."
-    exit 1
+sudo find "${MIRROR_DIR}" -name \*coreos\* -exec rm -f {} \;
+
+# If we have MicroShift RPMs built from source, add them to the mirror repo.
+if stat -t "${MICROSHIFT_RPM_DIR}"/microshift*.rpm >/dev/null 2>&1; then
+    title "Copying MicroShift RPMs from ${MICROSHIFT_RPM_DIR} into mirror repo."
+    sudo rm -f "${MIRROR_DIR}/${microshift_repo}"/microshift*.rpm
+    sudo cp "${MICROSHIFT_RPM_DIR}"/microshift*.rpm "${MIRROR_DIR}/${microshift_repo}"
 fi
-createrepo openshift-local >/dev/null
 
-title "Mirror Ansible repo"
-# Download openshift local RPM packages (noarch for python and selinux packages)
-rm -rf ansible-local 2>/dev/null || true
-reposync -n -a ${BUILD_ARCH} -a noarch --download-path ansible-local \
-            --repo=ansible-2.9-for-rhel-8-x86_64-rpms >/dev/null
-createrepo ansible-local >/dev/null
+# Create the repo.
+title "Creating the local MicroShift RPM repo"
+sudo createrepo "${MIRROR_DIR}" >/dev/null
 
-title "Done"
-popd &>/dev/null
+# Add the repo as Image Builder source.
+title "Adding the local MicroShift RPM repo as Image Builder source"
+sudo tee "${MIRROR_DIR}/source_microshift-local.toml" > /dev/null <<EOF
+id = "microshift-local"
+name = "Local MicroShift repo"
+type = "yum-baseurl"
+url = "file://${MIRROR_DIR}/"
+check_gpg = false
+check_ssl = false
+system = false
+EOF
+
+sudo composer-cli sources delete "microshift-local" 2>/dev/null || true
+sudo composer-cli sources add "${MIRROR_DIR}/source_microshift-local.toml"

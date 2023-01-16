@@ -1,39 +1,37 @@
 #!/bin/bash
 
 set -e -o pipefail
-#trap 'echo "# $BASH_COMMAND"' DEBUG
+
+title() { echo -e "\E[34m# $1\E[00m"; }
+fatal() { echo -e "\E[31mError: $1\E[00m"; exit 1; }
+
 
 REPOROOT="$(git rev-parse --show-toplevel)"
 DEMOS=$(cd "${REPOROOT}/demos"; find * -maxdepth 1 -type d | xargs)
-BUILD_ARCH=$(uname -i)
 
 DISTRO=$(grep "^ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
-[ "${DISTRO}" == "rhel" ] || fatal "Error: Must run on a RHEL system (have: ${DISTRO})."
 DISTRO_VERSION=$(grep "^VERSION_ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
-[[ "$DISTRO_VERSION" =~ ^([0-9]{1,})\.([0-9]{1,})$ ]] || fatal "Error: Invalid OS version string (have: ${DISTRO_VERSION})"
+[[ "$DISTRO_VERSION" =~ ^([0-9]{1,})\.([0-9]{1,})$ ]] || fatal "Invalid OS version string (have: ${DISTRO_VERSION})"
 DISTRO_VERSION_MAJOR=${BASH_REMATCH[1]}
 DISTRO_VERSION_MINOR=${BASH_REMATCH[2]}
-[ ${DISTRO_VERSION_MAJOR} -eq 8 -a ${DISTRO_VERSION_MINOR} -ge 7 ] || fatal "Error: Must run on RHEL system >= 8.7 and <9.0 (have: ${DISTRO_VERSION}."
+
 
 usage() {
     local error_message="$1"
 
-    if [ -n "$error_message" ]; then
-        echo "ERROR: $error_message"
-        echo
-    fi
-    echo "Usage: $(basename $0) <demoname>"
-    exit 1
+    echo "Usage: $(basename "$0") <demoname>"
+    [ -n "$error_message" ] && fatal "${error_message}"
+    exit 0
 }
 
 if [[ $# -ne 1 || " ${DEMOS} " != *"$1"* ]]; then
     usage "Must specify demo name (one of [${DEMOS}])."
 fi
 
+
 DEMONAME=$1
 DEMODIR="${REPOROOT}/demos/${DEMONAME}"
 BUILDDIR="${REPOROOT}/builds/${DEMONAME}"
-MIRRORDIR="${REPOROOT}/builds/mirror"
 
 PRIMARY_IP=$(ip route get 8.8.8.8 | head -1 | cut -d' ' -f 7)
 
@@ -44,87 +42,25 @@ OSTREE_SERVER_URL=${OSTREE_SERVER_URL:-http://${PRIMARY_IP}:8080}
 OCP_PULL_SECRET_FILE=${OCP_PULL_SECRET_FILE:-$HOME/.pull-secret.json}
 [ ! -s "${OCP_PULL_SECRET_FILE}" ] && usage "Empty or missing pull secret file ${OCP_PULL_SECRET_FILE}"
 
-title() {
-    echo -e "\E[34m# $1\E[00m";
-}
 
-add_local_mirrors() {
-    if [ ! -d "${REPOROOT}/builds/mirror" ]; then
-        echo "WARNING: No local RPM mirror found at ${REPOROOT}/builds/mirror. Trying to continue without."
-    fi
-    for repo in $(find "${REPOROOT}"/builds/mirror/* -maxdepth 0 -type d); do
-        name=$(basename "${repo}")
-        title "Adding source '${name}' to builder"
-        cat <<- EOF > "${MIRRORDIR}/source_${name}.toml"
-id = "${name}"
-name = "${name} repo"
-type = "yum-baseurl"
-url = "file://${MIRRORDIR}/${name}/"
-check_gpg = false
-check_ssl = false
-system = false
-EOF
-        sudo composer-cli sources delete "${name}" 2>/dev/null || true
-        sudo composer-cli sources add "${MIRRORDIR}/source_${name}.toml"
-    done
-}
+# Adds a source repo using the standard osbuild-composer mechanism (.toml file).
+add_repo() {
+    local source=$1
 
-add_extra_repos() {
-    shopt -s nullglob
-    # Add extra repos defined as osbuild-composer sources directly
-    for source in "${DEMODIR}"/source_*.toml; do
-        title "Adding source '${name}' to builder"
-        # osbuild-composer do not correctly handle baseurls with yum ariables
-        # like $basearch, so we need to render these vars beforehand
-        rendered_source=${BUILDDIR}/$(basename "${source}")
-        sed "s|\$basearch|$(uname -i)|g" "${source}" > "${rendered_source}"
+    id="$(grep -Po '^\s?id\s?=\s?"\K[^"]+' "${source}" | head -n 1)"
+    title "Adding source '${id}' to builder"
 
-        id="$(grep -Po '^\s?id\s?=\s?"\K[^"]+' "${source}" | head -n 1)"
-        title "Adding source '${id}' to builder"
-        sudo composer-cli sources delete "${id}" 2>/dev/null || true
-        sudo composer-cli sources add "${rendered_source}"
-    done
+    # This is a workaround for a current osbuild-composer limitation which is that
+    # it does not correctly handle baseurls with yum variables like $basearch,
+    # so we need to render these vars beforehand
+    rendered_source=${BUILDDIR}/$(basename "${source}")
+    sed \
+        -e "s|\$basearch|$(uname -i)|g" \
+        -e "s|\$releasever|${DISTRO_VERSION_MAJOR}|g" \
+        "${source}" > "${rendered_source}"
 
-    # As osbuild-composer sources do not support GPG keys, we add an alternative
-    # path to add repos, which works-around this limitation by adding 3rd-party
-    # repos as system repos.
-    default_repofile="/usr/share/osbuild-composer/repositories/${DISTRO}-${DISTRO_VERSION//\./}.json"
-    override_repofile="/etc/osbuild-composer/repositories/$(basename "${default_repofile}")"
-    working_repofile="${BUILDDIR}/$(basename "${default_repofile}")"
-    cp "${default_repofile}" "${working_repofile}"
-    for source in "${DEMODIR}"/source_*.repo; do
-        name=$(basename "${source}")
-        title "Adding repo '${name}' to system repos"
-
-        baseurl=$(grep -oP "^\s?baseurl\s?=\s?\K.+" "${source}")
-        gpgkeyurl=$(grep -oP "^\s?gpgkey\s?=\s?\K.+" "${source}")
-        gpgcheck=$(grep -oP "^\s?gpgcheck\s?=\s?\K.+" "${source}")
-
-        gpgkey=""
-        check_gpg="false"
-        if [[ "${gpgcheck}" == "1" && ! -z "${gpgkeyurl}" ]]; then
-            gpgkey=$(curl -sL "${gpgkeyurl}")
-            gpgkey=${gpgkey//$'\n'/\\n}
-            check_gpg="true"
-        fi
-
-        for arch in x86_64 aarch64; do
-            baseurl_rendered=${baseurl//\$basearch/${arch}}
-            baseurl_rendered=${baseurl_rendered//\$releasever/${DISTRO_VERSION_MAJOR}}
-            jq ".${arch} += [{ \
-               \"name\": \"${name}\", \
-               \"baseurl\": \"${baseurl_rendered}\", \
-               \"gpgkey\": \"${gpgkey}\", \
-               \"check_gpg\": ${check_gpg} \
-               }]" "${working_repofile}" > "${working_repofile}.tmp"
-            mv "${working_repofile}.tmp" "${working_repofile}"
-        done
-        sudo cp "${working_repofile}" "${override_repofile}"
-    done
-    shopt -u nullglob
-
-    title "Restarting osbuild-composer service"
-    sudo systemctl restart osbuild-composer.service
+    sudo composer-cli sources delete "${id}" 2>/dev/null || true
+    sudo composer-cli sources add "${rendered_source}"
 }
 
 load_blueprint() {
@@ -142,10 +78,10 @@ waitfor_image() {
     local tstart=$(date +%s)
     echo "$(date +'%Y-%m-%d %H:%M:%S') STARTED"
 
-    local status=$(sudo composer-cli compose status | grep ${uuid} | awk '{print $2}')
+    local status=$(sudo composer-cli compose info --json "${uuid}" | jq -r '.body.queue_status')
     while [ "${status}" =  "RUNNING" ]; do
         sleep 10
-        status=$(sudo composer-cli compose status | grep "${uuid}" | awk '{print $2}')
+        status=$(sudo composer-cli compose info --json "${uuid}" | jq -r '.body.queue_status')
         echo -en "$(date +'%Y-%m-%d %H:%M:%S') ${status}\r"
     done
 
@@ -178,6 +114,7 @@ build_image() {
     title "Loading ${blueprint} blueprint v${version}"
     load_blueprint "${blueprint}" "${blueprint_file}"
 
+    ref="${DISTRO}/${DISTRO_VERSION_MAJOR}/$(uname -i)/edge"
     if [ -n "$parent_version" ]; then
         title "Serving ${parent_blueprint} v${parent_version} container locally"
         sudo podman rm -f ostree-server 2>/dev/null || true
@@ -187,10 +124,10 @@ build_image() {
         sudo podman run -d --name=ostree-server -p 8080:8080 "localhost/${parent_blueprint}:${parent_version}"
 
         title "Building ${image_type} for ${blueprint} v${version}, parent ${parent_blueprint} v${parent_version}"
-        buildid=$(sudo composer-cli compose start-ostree --ref "rhel/8/${BUILD_ARCH}/edge" --url http://localhost:8080/repo/ "${blueprint}" "${image_type}" | awk '{print $2}')
+        buildid=$(sudo composer-cli compose start-ostree --json --ref "${ref}" --url http://localhost:8080/repo/ "${blueprint}" "${image_type}" | jq -r '.body.build_id')
     else
         title "Building ${image_type} for ${blueprint} v${version}"
-        buildid=$(sudo composer-cli compose start-ostree --ref "rhel/8/${BUILD_ARCH}/edge" "${blueprint}" "${image_type}" | awk '{print $2}')
+        buildid=$(sudo composer-cli compose start-ostree --json --ref "${ref}" "${blueprint}" "${image_type}" | jq -r '.body.build_id')
     fi
 
     waitfor_image "${buildid}"
@@ -200,14 +137,23 @@ build_image() {
 }
 
 
+# Verify the MicroShift RPMs have been mirrored to disk
+result=$(sudo composer-cli sources list --json | jq '.body.sources | index("microshift-local")')
+[ "${result}" = null ] && fatal "Did not find local mirror of MicroShift RPMs. Did you run ./scripts/mirror-repos ?"
+
+# Change to the demo's build directory
 mkdir -p "${BUILDDIR}"
 pushd "${BUILDDIR}" &>/dev/null
 
-add_local_mirrors
-add_extra_repos
+# Add additional repos required by the specific demo
+shopt -s nullglob
+for repo in "${DEMODIR}"/source_*.toml; do
+    add_repo "${repo}"
+done
+shopt -u nullglob
 
 # Build images from blueprints in alphabetical order of file names.
-# Assumes files are named following the pattern "${SOME_NAME}_v${SOME_VERSION}.toml".
+# Assumes files are named following the pattern "blueprint_v${SOME_VERSION}.toml".
 # Assumes blueprint N is the parent of blueprint N+1.
 parent_version=""
 for blueprint in "${DEMODIR}"/blueprint_*.toml; do
@@ -232,7 +178,7 @@ else
 fi
 
 # Embed the kickstart into the installer ISO if there's no ISO containing it yet
-if [ ! -f "${BUILDDIR}/installer.${BUILD_ARCH}.iso" ]; then
+if [ ! -f "${BUILDDIR}/installer.$(uname -i).iso" ]; then
     title "Embedding kickstart"
     if [ -f "${SSH_PUBLIC_KEY_FILE}" ]; then
         echo "INFO: Using existing SSH public key ${SSH_PUBLIC_KEY_FILE}"
@@ -254,7 +200,7 @@ if [ ! -f "${BUILDDIR}/installer.${BUILD_ARCH}.iso" ]; then
         USER_AUTHORIZED_KEY=$(cat "${SSH_PUBLIC_KEY_FILE}") \
         OCP_PULL_SECRET_CONTENTS=$(cat "${OCP_PULL_SECRET_FILE}" | jq -c) \
         envsubst > "${BUILDDIR}/kickstart.ks"
-    sudo mkksiso kickstart.ks installer-0.0.0-installer.iso ${DEMONAME}-installer.${BUILD_ARCH}.iso
+    sudo mkksiso kickstart.ks installer-0.0.0-installer.iso "${DEMONAME}-installer.$(uname -i).iso"
     sudo chown -R "$(whoami)." "${BUILDDIR}"
 else
     title "Skipping embedding of kickstart"

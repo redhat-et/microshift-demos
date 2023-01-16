@@ -2,34 +2,40 @@
 
 set -e -o pipefail
 
-title() {
-    echo -e "\E[34m# $1\E[00m";
-}
+title() { echo -e "\E[34m# $1\E[00m"; }
+fatal() { echo -e "\E[31mError: $1\E[00m"; exit 1; }
 
-fatal() {
-    echo -e "\E[31m$1\E[00m";
-    exit 1
-}
 
 DISTRO=$(grep "^ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
-[ "${DISTRO}" == "rhel" ] || fatal "Error: Must run on a RHEL system (have: ${DISTRO})."
 DISTRO_VERSION=$(grep "^VERSION_ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
-[[ "$DISTRO_VERSION" =~ ^([0-9]{1,})\.([0-9]{1,})$ ]] || fatal "Error: Invalid OS version string (have: ${DISTRO_VERSION})"
+[[ "$DISTRO_VERSION" =~ ^([0-9]{1,})\.([0-9]{1,})$ ]] || fatal "Invalid OS version string (have: ${DISTRO_VERSION})"
 DISTRO_VERSION_MAJOR=${BASH_REMATCH[1]}
 DISTRO_VERSION_MINOR=${BASH_REMATCH[2]}
-[ ${DISTRO_VERSION_MAJOR} -eq 8 -a ${DISTRO_VERSION_MINOR} -ge 7 ] || fatal "Error: Must run on RHEL system >= 8.7 and <9.0 (have: ${DISTRO_VERSION}."
 
+
+# Verify we are on a supported distro.
+case "${DISTRO}" in
+    rhel)
+        # Verify we are on a supported version.
+        [ "${DISTRO_VERSION_MAJOR}" -ge 8 ] || fatal "RHEL version must be >= 8.7 (have: ${DISTRO_VERSION})."
+        [ "${DISTRO_VERSION_MINOR}" -ge 7 ] || fatal "RHEL version must be >= 8.7 (have: ${DISTRO_VERSION})."
+        ;;
+
+    *)
+        fatal "\"${DISTRO}\" is not a supported distribution."
+        ;;
+esac
 
 title "Installing experimental 'rpm-ostree' version (with support for embedding containers)"
 # Remove original rpm-ostree packages
-LIST2REMOVE=$(rpm -qa | egrep '^rpm-ostree' || true)
-[ ! -z "${LIST2REMOVE}" ] && sudo dnf remove -y ${LIST2REMOVE}
+LIST2REMOVE=$(rpm -qa | grep -E '^rpm-ostree' || true)
+[ -n "${LIST2REMOVE}" ] && sudo dnf remove -y ${LIST2REMOVE}
 
 # Clean-up the old osbuild jobs and state to avoid incompatibilities between versions
 sudo rm -rf /var/lib/osbuild-composer || true
 sudo rm -rf /var/cache/{osbuild-composer,osbuild-worker} || true
 
-# Install the experimental rpm-ostree packages
+# Add the repo for the experimental rpm-ostree packages (they'll be installed with osbuild)
 sudo wget -P /etc/yum.repos.d https://copr.fedorainfracloud.org/coprs/walters/ostreerhel8/repo/centos-stream-8/walters-ostreerhel8-centos-stream-8.repo
 
 title "Installing ImageBuilder tools"
@@ -43,16 +49,5 @@ sudo systemctl enable osbuild-composer.socket --now
 sudo systemctl enable cockpit.socket --now
 sudo firewall-cmd -q --add-service=cockpit --permanent
 sudo firewall-cmd --reload
-
-# Temporary workaround until the rhocp-4.12-for-rhel-8-$(uname -i)-rpms repo can be used
-title "Configuring 4.12 beta repo"
-sudo tee /etc/yum.repos.d/rhocp-4.12-el8-beta-$(uname -i)-rpms.repo >/dev/null <<EOF
-[rhocp-4.12-el8-beta-$(uname -i)-rpms]
-name=Beta rhocp-4.12 RPMs for RHEL8
-baseurl=https://mirror.openshift.com/pub/openshift-v4/\$basearch/dependencies/rpms/4.12-el8-beta/
-enabled=1
-gpgcheck=0
-skip_if_unavailable=1
-EOF
 
 title "Done"
