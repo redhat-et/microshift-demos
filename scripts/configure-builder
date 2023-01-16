@@ -26,16 +26,16 @@ case "${DISTRO}" in
         ;;
 esac
 
-title "Installing experimental 'rpm-ostree' version (with support for embedding containers)"
-# Remove original rpm-ostree packages
-LIST2REMOVE=$(rpm -qa | grep -E '^rpm-ostree' || true)
+title "Installing experimental 'ostree' version (with support for embedding containers)"
+# Remove original ostree packages
+LIST2REMOVE=$(rpm -qa | grep -E '^ostree' || true)
 [ -n "${LIST2REMOVE}" ] && sudo dnf remove -y ${LIST2REMOVE}
 
 # Clean-up the old osbuild jobs and state to avoid incompatibilities between versions
 sudo rm -rf /var/lib/osbuild-composer || true
 sudo rm -rf /var/cache/{osbuild-composer,osbuild-worker} || true
 
-# Add the repo for the experimental rpm-ostree packages (they'll be installed with osbuild)
+# Add the repo for the experimental ostree packages (they'll be installed with osbuild)
 sudo wget -P /etc/yum.repos.d https://copr.fedorainfracloud.org/coprs/walters/ostreerhel8/repo/centos-stream-8/walters-ostreerhel8-centos-stream-8.repo
 
 title "Installing ImageBuilder tools"
@@ -44,9 +44,14 @@ sudo dnf install -y \
     bash-completion podman genisoimage syslinux \
     createrepo syslinux yum-utils selinux-policy-devel jq wget lorax rpm-build
 
-title "Starting osbuild-composer and cockpit services and configuring firewall"
-sudo systemctl enable osbuild-composer.socket --now
-sudo systemctl enable cockpit.socket --now
+title "Starting osbuild-composer and cockpit services"
+sudo systemctl enable osbuild-composer.socket
+sudo systemctl enable cockpit.socket
+sudo systemctl restart osbuild-composer.socket
+sudo systemctl restart osbuild-local-worker.socket
+sudo systemctl restart osbuild-composer.service
+
+title "configuring firewall"
 sudo firewall-cmd -q --add-service=cockpit --permanent
 sudo firewall-cmd --reload
 

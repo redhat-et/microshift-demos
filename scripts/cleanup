@@ -11,6 +11,9 @@ title() {
 title "Deleting build dir"
 sudo rm -rf "${REPOROOT}"/builds
 
+title "Deleting mirror repo dir"
+sudo rm -rf /var/repos
+
 title "Cancelling and deleting composes"
 for uuid in $(sudo composer-cli compose list | awk '{print $1}'); do
     echo "Deleting compose ${uuid}"

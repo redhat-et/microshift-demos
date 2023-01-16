@@ -7,7 +7,7 @@ fatal() { echo -e "\E[31mError: $1\E[00m"; exit 1; }
 
 
 MICROSHIFT_VERSION="${MICROSHIFT_VERSION:-4.12}"
-MICROSHIFT_BETA="${MICROSHIFT_BETA:-true}"
+MICROSHIFT_DEV_PREVIEW="${MICROSHIFT_DEV_PREVIEW:-true}"
 
 REPOROOT="$(git rev-parse --show-toplevel)"
 MIRROR_DIR="/var/repos/microshift-local"
@@ -40,33 +40,44 @@ sudo rm -rf "${MIRROR_DIR}" 2>/dev/null && sudo mkdir -p "${MIRROR_DIR}"
 repos=""
 case "${DISTRO}" in
     rhel)
-        # Configure MicroShift release or beta repos.
-        if [ "${MICROSHIFT_BETA}" = true ]; then
-            microshift_repo="rhocp-${MICROSHIFT_VERSION}-beta-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
-            title "Configuring ${microshift_repo} repo"
+        # Configure MicroShift repos (release or dev-preview).
+        if [ "${MICROSHIFT_DEV_PREVIEW}" = true ]; then
+            # Import Red Hat public keys to allow RPM GPG check (not necessary if a system is registered)
+            if ! sudo subscription-manager status >& /dev/null ; then
+                sudo rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-*
+            fi
+
+            # Need to install both the latest MicroShift dev preview builds as well as the beta repo of dependencies
+            microshift_repo="microshift-${MICROSHIFT_VERSION}-dev-preview-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
+            deps_repo="rhocp-${MICROSHIFT_VERSION}-beta-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
+            title "Configuring ${microshift_repo} and ${deps_repo} repos"
             sudo subscription-manager repos --disable "rhocp-${MICROSHIFT_VERSION}-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
-            sudo tee /etc/yum.repos.d/microshift-beta.repo > /dev/null <<EOF
+            sudo tee /etc/yum.repos.d/microshift-dev-preview.repo > /dev/null <<EOF
 [${microshift_repo}]
-name=MicroShift beta repo
+name=MicroShift ${MICROSHIFT_VERSION} Dev Preview $(uname -i) RPMs
+baseurl=https://mirror.openshift.com/pub/openshift-v4/\$basearch/microshift/ocp-dev-preview/latest-${MICROSHIFT_VERSION}/el${DISTRO_VERSION_MAJOR}/os/
+enabled=1
+gpgcheck=0
+skip_if_unavailable=0
+
+[${deps_repo}]
+name=Red Hat OpenShift Container Platform ${MICROSHIFT_VERSION} BETA for RHEL ${DISTRO_VERSION_MAJOR} $(uname -i) (RPMs)
 baseurl=https://mirror.openshift.com/pub/openshift-v4/\$basearch/dependencies/rpms/${MICROSHIFT_VERSION}-el${DISTRO_VERSION_MAJOR}-beta/
 enabled=1
 gpgcheck=1
 skip_if_unavailable=0
 EOF
-            # Import Red Hat public keys to allow RPM GPG check (not necessary if a system is registered)
-            if ! sudo subscription-manager status >& /dev/null ; then
-                sudo rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-*
-            fi
+        microshift_repo="${microshift_repo} ${deps_repo}"
         else
             microshift_repo="rhocp-${MICROSHIFT_VERSION}-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
             title "Configuring ${microshift_repo} repo"
             sudo subscription-manager repos --enable "${microshift_repo}"
-            sudo rm -f /etc/yum.repos.d/microshift-beta.repo
+            sudo rm -f /etc/yum.repos.d/microshift-dev-preview.repo
         fi
         repos="${repos} ${microshift_repo}"
 
-        sudo subscription-manager repos --enable "fast-datapath-for-rhel-8-$(uname -i)-rpms"
-        repos="${repos} fast-datapath-for-rhel-8-$(uname -i)-rpms"
+        sudo subscription-manager repos --enable "fast-datapath-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
+        repos="${repos} fast-datapath-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
         ;;
 
     *)
@@ -84,7 +95,7 @@ done
 # Remove coreos packages to avoid conflicts
 sudo find "${MIRROR_DIR}" -name \*coreos\* -exec rm -f {} \;
 
-# If we have MicroShift RPMs built from source, add them to the mirror repo.
+# If we have MicroShift RPMs built from source, replace the RPMs in the mirror repo with these.
 if stat -t "${MICROSHIFT_RPM_DIR}"/microshift*.rpm >/dev/null 2>&1; then
     title "Copying MicroShift RPMs from ${MICROSHIFT_RPM_DIR} into mirror repo."
     sudo rm -f "${MIRROR_DIR}/${microshift_repo}"/microshift*.rpm

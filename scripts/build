@@ -5,6 +5,8 @@ set -e -o pipefail
 title() { echo -e "\E[34m# $1\E[00m"; }
 fatal() { echo -e "\E[31mError: $1\E[00m"; exit 1; }
 
+trap 'fatal "command on line ${LINENO} exited with code $?: $BASH_COMMAND"' ERR
+
 
 REPOROOT="$(git rev-parse --show-toplevel)"
 DEMOS=$(cd "${REPOROOT}/demos"; find * -maxdepth 1 -type d | xargs)
@@ -79,7 +81,7 @@ waitfor_image() {
     echo "$(date +'%Y-%m-%d %H:%M:%S') STARTED"
 
     local status=$(sudo composer-cli compose info --json "${uuid}" | jq -r '.body.queue_status')
-    while [ "${status}" =  "RUNNING" ]; do
+    while [ "${status}" =  RUNNING ] || [ "${status}" =  WAITING ]; do
         sleep 10
         status=$(sudo composer-cli compose info --json "${uuid}" | jq -r '.body.queue_status')
         echo -en "$(date +'%Y-%m-%d %H:%M:%S') ${status}\r"
@@ -88,8 +90,8 @@ waitfor_image() {
     local tend=$(date +%s)
     echo "$(date +'%Y-%m-%d %H:%M:%S') ${status} - elapsed $(( (tend - tstart) / 60 )) minutes"
 
-    if [ "${status}" = "FAILED" ]; then
-        download_image ${uuid} 1
+    if [ "${status}" = FAILED ]; then
+        download_image "${uuid}" 1
         echo "Blueprint build has failed. For more information, review the downloaded logs"
         exit 1
     fi
@@ -124,10 +126,18 @@ build_image() {
         sudo podman run -d --name=ostree-server -p 8080:8080 "localhost/${parent_blueprint}:${parent_version}"
 
         title "Building ${image_type} for ${blueprint} v${version}, parent ${parent_blueprint} v${parent_version}"
-        buildid=$(sudo composer-cli compose start-ostree --json --ref "${ref}" --url http://localhost:8080/repo/ "${blueprint}" "${image_type}" | jq -r '.body.build_id')
+        result=$(sudo composer-cli compose start-ostree --json --ref "${ref}" --url http://localhost:8080/repo/ "${blueprint}" "${image_type}") || true
+        buildid=$(jq -r '.body.build_id' <<< "${result}")
+        if [ "${buildid}" = "null" ]; then
+            fatal "Error starting compose for ${blueprint}: $(jq -r '.body.errors' <<< "${result}")"
+        fi
     else
         title "Building ${image_type} for ${blueprint} v${version}"
-        buildid=$(sudo composer-cli compose start-ostree --json --ref "${ref}" "${blueprint}" "${image_type}" | jq -r '.body.build_id')
+        result=$(sudo composer-cli compose start-ostree --json --ref "${ref}" "${blueprint}" "${image_type}") || true
+        buildid=$(jq -r '.body.build_id' <<< "${result}")
+        if [ "${buildid}" = "null" ]; then
+            fatal "Error starting compose for ${blueprint}: $(jq -r '.body.errors' <<< "${result}")"
+        fi
     fi
 
     waitfor_image "${buildid}"
@@ -141,22 +151,35 @@ build_image() {
 result=$(sudo composer-cli sources list --json | jq '.body.sources | index("microshift-local")')
 [ "${result}" = null ] && fatal "Did not find local mirror of MicroShift RPMs. Did you run ./scripts/mirror-repos ?"
 
+# Copy the pull secret to osbuild worker's config dir (in case containers are embedded into blueprint)
+sudo mkdir -p /etc/osbuild-worker
+sudo cp -- "${OCP_PULL_SECRET_FILE}" /etc/osbuild-worker/pull-secret.json
+sudo tee /etc/osbuild-worker/osbuild-worker.toml &>/dev/null <<EOF
+[containers]
+auth_file_path = "/etc/osbuild-worker/pull-secret.json"
+EOF
+
 # Change to the demo's build directory
 mkdir -p "${BUILDDIR}"
 pushd "${BUILDDIR}" &>/dev/null
 
 # Add additional repos required by the specific demo
-shopt -s nullglob
-for repo in "${DEMODIR}"/source_*.toml; do
+sources=$(shopt -s nullglob; echo "${DEMODIR}"/source_*.toml)
+for repo in ${sources}; do
     add_repo "${repo}"
 done
-shopt -u nullglob
 
 # Build images from blueprints in alphabetical order of file names.
-# Assumes files are named following the pattern "blueprint_v${SOME_VERSION}.toml".
+# Assumes files are named following the pattern "blueprint_${SOME_VERSION}_${CPU_ARCH}.toml",
+# or - if no such pattern exists - instead "blueprint_${SOME_VERSION}.toml"
 # Assumes blueprint N is the parent of blueprint N+1.
 parent_version=""
-for blueprint in "${DEMODIR}"/blueprint_*.toml; do
+root_parent_version=""
+blueprints=$(shopt -s nullglob; echo "${DEMODIR}"/blueprint_*_$(uname -i).toml)
+if [ -z "${blueprints}" ]; then
+    blueprints=$(shopt -s nullglob; echo "${DEMODIR}"/blueprint_*.toml)
+fi
+for blueprint in ${blueprints}; do
     version="$(echo "${blueprint}" | grep -Po '_v\K(.*)(?=\.toml)')"
     if [ ! -f "${BUILDDIR}/${DEMONAME}-${version}-container.tar" ]; then
         if [ -z "${parent_version}" ]; then
@@ -168,11 +191,12 @@ for blueprint in "${DEMODIR}"/blueprint_*.toml; do
         title "Skipping build of ${DEMONAME} v${version}"
     fi
     parent_version="${version}"
+    [ -z "${root_parent_version}" ] && root_parent_version="${parent_version}"
 done
 
 # Build the installer ISO if it doesn't exist yet
 if [ ! -f "${BUILDDIR}/installer-0.0.0-installer.iso" ]; then
-    build_image "${REPOROOT}/scripts/shared/installer.toml" "installer" 0.0.0 edge-installer "${DEMONAME}" 0.0.1
+    build_image "${REPOROOT}/scripts/shared/installer.toml" "installer" 0.0.0 edge-installer "${DEMONAME}" "${root_parent_version}"
 else
     title "Skipping build of installer"
 fi
