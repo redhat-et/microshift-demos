@@ -179,6 +179,9 @@ blueprints=$(shopt -s nullglob; echo "${DEMODIR}"/blueprint_*_$(uname -i).toml)
 if [ -z "${blueprints}" ]; then
     blueprints=$(shopt -s nullglob; echo "${DEMODIR}"/blueprint_*.toml)
 fi
+if [ -z "${blueprints}" ]; then
+    fatal "${DEMODIR} does not contain a blueprint."
+fi
 for blueprint in ${blueprints}; do
     version="$(echo "${blueprint}" | grep -Po '_v\K(.*)(?=\.toml)')"
     if [ ! -f "${BUILDDIR}/${DEMONAME}-${version}-container.tar" ]; then

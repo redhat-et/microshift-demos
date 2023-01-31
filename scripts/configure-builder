@@ -36,7 +36,8 @@ sudo rm -rf /var/lib/osbuild-composer || true
 sudo rm -rf /var/cache/{osbuild-composer,osbuild-worker} || true
 
 # Add the repo for the experimental ostree packages (they'll be installed with osbuild)
-sudo wget -P /etc/yum.repos.d https://copr.fedorainfracloud.org/coprs/walters/ostreerhel8/repo/centos-stream-8/walters-ostreerhel8-centos-stream-8.repo
+sudo curl --location --output /etc/yum.repos.d/walters-ostreerhel8-centos-stream-8.repo \
+    https://copr.fedorainfracloud.org/coprs/walters/ostreerhel8/repo/centos-stream-8/walters-ostreerhel8-centos-stream-8.repo
 
 title "Installing ImageBuilder tools"
 sudo dnf install -y \

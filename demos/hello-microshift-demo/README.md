@@ -13,7 +13,7 @@ Install a VM or physical machine with the minimum system requirements (2 cores, 
 
 SSH into the machine:
 
-    ssh -o "IdentitiesOnly=yes" -i ./builds/hello-microshift/demo/id_demo microshift@$MACHINE_IP
+    ssh -o "IdentitiesOnly=yes" -i ./builds/hello-microshift-demo/id_demo microshift@$MACHINE_IP
 
 Verify that the MicroShift service has started:
 
