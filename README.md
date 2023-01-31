@@ -22,11 +22,7 @@ Set up Image Builder and other build dependencies:
 
     ./scripts/configure-builder
 
-Once MicroShift 4.12 is released, you'll find its RPMs in the official repos on the Red Hat CDN. For now, we will need to build the MicroShift RPMs from source.
-
-    ./scripts/build-latest-rpms
-
-Afterwards, the RPMs are available under `./builds/rpms`. Next, we'll mirror these and other dependencies into a local repo to accelerate the image build process.
+Mirror MicroShift and its dependencies into a local repo to accelerate the image build process.
 
     ./scripts/mirror-repos
 
@@ -53,3 +49,16 @@ Once the build completes, you should find the demo's artefacts in `builds/$DEMON
 After deploying a machine with the installer, you should be able to log into it using the user `microshift` and the password in `builds/$DEMONAME/password` or via `ssh` with
 
     ssh -o "IdentitiesOnly=yes" -i builds/$DEMONAME/id_demo microshift@$MACHINE_IP
+
+## Building demo images with pre-release versions of MicroShift
+
+By default, the `mirror-repos` script will mirror the latest MicroShift version from the official 4.12 release repos.
+
+To mirror the developer preview repos instead (may not always work), use:
+
+    MICROSHIFT_DEV_PREVIEW=true MICROSHIFT_VERSION=4.13 MICROSHIFT_DEPS_VERSION=4.12 ./scripts/mirror-repos
+
+To test the latest MicroShift version built from source instead (may not always work), use:
+
+    ./scripts/build-latest-rpms
+    MICROSHIFT_DEV_PREVIEW=true MICROSHIFT_VERSION=4.13 MICROSHIFT_DEPS_VERSION=4.12 ./scripts/mirror-repos

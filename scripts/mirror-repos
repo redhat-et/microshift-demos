@@ -7,7 +7,8 @@ fatal() { echo -e "\E[31mError: $1\E[00m"; exit 1; }
 
 
 MICROSHIFT_VERSION="${MICROSHIFT_VERSION:-4.12}"
-MICROSHIFT_DEV_PREVIEW="${MICROSHIFT_DEV_PREVIEW:-true}"
+MICROSHIFT_DEPS_VERSION="${MICROSHIFT_DEPS_VERSION:-${MICROSHIFT_VERSION}}"
+MICROSHIFT_DEV_PREVIEW="${MICROSHIFT_DEV_PREVIEW:-false}"
 
 REPOROOT="$(git rev-parse --show-toplevel)"
 MIRROR_DIR="/var/repos/microshift-local"
@@ -49,7 +50,7 @@ case "${DISTRO}" in
 
             # Need to install both the latest MicroShift dev preview builds as well as the beta repo of dependencies
             microshift_repo="microshift-${MICROSHIFT_VERSION}-dev-preview-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
-            deps_repo="rhocp-${MICROSHIFT_VERSION}-beta-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
+            deps_repo="rhocp-${MICROSHIFT_DEPS_VERSION}-beta-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
             title "Configuring ${microshift_repo} and ${deps_repo} repos"
             sudo subscription-manager repos --disable "rhocp-${MICROSHIFT_VERSION}-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
             sudo tee /etc/yum.repos.d/microshift-dev-preview.repo > /dev/null <<EOF
@@ -61,8 +62,8 @@ gpgcheck=0
 skip_if_unavailable=0
 
 [${deps_repo}]
-name=Red Hat OpenShift Container Platform ${MICROSHIFT_VERSION} BETA for RHEL ${DISTRO_VERSION_MAJOR} $(uname -i) (RPMs)
-baseurl=https://mirror.openshift.com/pub/openshift-v4/\$basearch/dependencies/rpms/${MICROSHIFT_VERSION}-el${DISTRO_VERSION_MAJOR}-beta/
+name=Red Hat OpenShift Container Platform ${MICROSHIFT_DEPS_VERSION} BETA for RHEL ${DISTRO_VERSION_MAJOR} $(uname -i) (RPMs)
+baseurl=https://mirror.openshift.com/pub/openshift-v4/\$basearch/dependencies/rpms/${MICROSHIFT_DEPS_VERSION}-el${DISTRO_VERSION_MAJOR}-beta/
 enabled=1
 gpgcheck=1
 skip_if_unavailable=0
