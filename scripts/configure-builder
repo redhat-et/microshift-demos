@@ -14,11 +14,13 @@ DISTRO_VERSION_MINOR=${BASH_REMATCH[2]}
 
 
 # Verify we are on a supported distro.
-case "${DISTRO}" in
-    rhel)
-        # Verify we are on a supported version.
-        [ "${DISTRO_VERSION_MAJOR}" -ge 8 ] || fatal "RHEL version must be >= 8.7 (have: ${DISTRO_VERSION})."
-        [ "${DISTRO_VERSION_MINOR}" -ge 7 ] || fatal "RHEL version must be >= 8.7 (have: ${DISTRO_VERSION})."
+case "${DISTRO}-${DISTRO_VERSION_MAJOR}" in
+    rhel-8)
+        [ "${DISTRO_VERSION_MINOR}" -lt 7 ] && fatal "RHEL8 version must be >= 8.7 (have: ${DISTRO_VERSION})."
+        ;;
+
+    rhel-9)
+        [ "${DISTRO_VERSION_MINOR}" -lt 1 ] && fatal "RHEL9 version must be >= 9.1 (have: ${DISTRO_VERSION})."
         ;;
 
     *)

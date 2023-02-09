@@ -17,6 +17,8 @@ DISTRO_VERSION=$(grep "^VERSION_ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"'
 DISTRO_VERSION_MAJOR=${BASH_REMATCH[1]}
 DISTRO_VERSION_MINOR=${BASH_REMATCH[2]}
 
+OSTREE_REF="${DISTRO}/${DISTRO_VERSION_MAJOR}/$(uname -i)/edge"
+
 
 usage() {
     local error_message="$1"
@@ -116,7 +118,6 @@ build_image() {
     title "Loading ${blueprint} blueprint v${version}"
     load_blueprint "${blueprint}" "${blueprint_file}"
 
-    ref="${DISTRO}/${DISTRO_VERSION_MAJOR}/$(uname -i)/edge"
     if [ -n "$parent_version" ]; then
         title "Serving ${parent_blueprint} v${parent_version} container locally"
         sudo podman rm -f ostree-server 2>/dev/null || true
@@ -126,14 +127,14 @@ build_image() {
         sudo podman run -d --name=ostree-server -p 8080:8080 "localhost/${parent_blueprint}:${parent_version}"
 
         title "Building ${image_type} for ${blueprint} v${version}, parent ${parent_blueprint} v${parent_version}"
-        result=$(sudo composer-cli compose start-ostree --json --ref "${ref}" --url http://localhost:8080/repo/ "${blueprint}" "${image_type}") || true
+        result=$(sudo composer-cli compose start-ostree --json --ref "${OSTREE_REF}" --url http://localhost:8080/repo/ "${blueprint}" "${image_type}") || true
         buildid=$(jq -r '.body.build_id' <<< "${result}")
         if [ "${buildid}" = "null" ]; then
             fatal "Error starting compose for ${blueprint}: $(jq -r '.body.errors' <<< "${result}")"
         fi
     else
         title "Building ${image_type} for ${blueprint} v${version}"
-        result=$(sudo composer-cli compose start-ostree --json --ref "${ref}" "${blueprint}" "${image_type}") || true
+        result=$(sudo composer-cli compose start-ostree --json --ref "${OSTREE_REF}" "${blueprint}" "${image_type}") || true
         buildid=$(jq -r '.body.build_id' <<< "${result}")
         if [ "${buildid}" = "null" ]; then
             fatal "Error starting compose for ${blueprint}: $(jq -r '.body.errors' <<< "${result}")"
@@ -221,6 +222,7 @@ if [ ! -f "${BUILDDIR}/${DEMONAME}-installer.$(uname -i).iso" ]; then
     fi
     cat "${DEMODIR}/kickstart.ks.tmpl" | \
         OSTREE_REPO_URL=${OSTREE_SERVER_URL}/repo/ \
+        OSTREE_REF=${OSTREE_REF} \
         TRANSMISSION_URL=${GITOPS_REPO}?ref=\${uuid} \
         USER_NAME="microshift" \
         USER_PASS_ENCRYPTED=$(openssl passwd -6 -stdin < "${PASSWORD_FILE}") \
