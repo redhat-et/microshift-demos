@@ -55,7 +55,7 @@ Verify that the application is deployed and the route is accepted:
 Add an entry to `/etc/hosts` to map the application's route (`hello-microshift.local`) to the machine's primary IP:
 
     hostIP=$(ip route get 1.1.1.1 | grep -oP 'src \K\S+')
-    sudo sed -i .bak '/hello-microshift.local/d' /etc/hosts
+    sudo sed -i.bak '/hello-microshift.local/d' /etc/hosts
     echo "${hostIP}  hello-microshift.local" | sudo tee -a /etc/hosts
 
 Now, trying to `curl` the application's route should return the "Hello, MicroShift!" HTML page:
@@ -82,7 +82,7 @@ To remotely access the cluster using the `oc` client, copy the kubeconfig from t
 
     mkdir -p ~/.kube/config
     ssh -o "IdentitiesOnly=yes" -i ./builds/hello-microshift/demo/id_demo microshift@$MACHINE_IP "sudo cat /var/lib/microshift/resources/kubeadmin/kubeconfig" > ~/.kube/config
-    sed -i .bak 's|server: https://127.0.0.1:6443|server: https://hello-microshift.local:6443|' ~/.kube/config
+    sed -i.bak 's|server: https://127.0.0.1:6443|server: https://hello-microshift.local:6443|' ~/.kube/config
 
 Now you can access the cluster remotely:
 
