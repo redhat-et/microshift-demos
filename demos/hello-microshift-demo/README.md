@@ -72,7 +72,7 @@ Next, let's access the cluster and application from outside the MicroShift machi
 
 If you're running the MicroShift on a VM _and_ your hypervisor connects instances via NAT, make sure to create port mappings from the hypervisor to guest ports 22 (ssh), 80 (http), and 6443 (K8s API).
 
-Oo the MicroShift VM, ensure proper `firewalld` services are open. Use the following command on the MicroShift machine to open the services in the running config of `firewalld`.
+On the MicroShift machine, ensure proper `firewalld` services are open. Use the following command on the MicroShift machine to open the services in the running config of `firewalld`.
 
     sudo firewall-cmd --add-service={ssh,http,kube-apiserver}
 
