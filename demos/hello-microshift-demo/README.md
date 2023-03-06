@@ -52,11 +52,12 @@ Verify that the application is deployed and the route is accepted:
     NAME               HOST                     ADMITTED   SERVICE            TLS
     hello-microshift   hello-microshift.local   True       hello-microshift
 
-Add an entry to `/etc/hosts` to map the application's route (`hello-microshift.local`) to the machine's primary IP:
+Add an entry to `/etc/hosts` to map the application's route to the host's IP address. The route FQDN is in the `routes/hello-microsoft` route object in the `demo` namespace. It will be `hello-microshift.local` but we'll use an oc command to output the route into a BASH variable named `route`. We then associate the host's IP to the route FQDN to the /etc/hosts file.
 
     hostIP=$(ip route get 1.1.1.1 | grep -oP 'src \K\S+')
+    route=$(oc get routes/hello-microshift -n demo -o=jsonpath={.spec.host})
     sudo sed -i.bak '/hello-microshift.local/d' /etc/hosts
-    echo "${hostIP}  hello-microshift.local" | sudo tee -a /etc/hosts
+    echo "${hostIP}  ${route}" | sudo tee -a /etc/hosts
 
 Now, trying to `curl` the application's route should return the "Hello, MicroShift!" HTML page:
 
