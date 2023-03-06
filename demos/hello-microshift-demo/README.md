@@ -72,7 +72,15 @@ Next, let's access the cluster and application from outside the MicroShift machi
 
 If you're running the MicroShift on a VM _and_ your hypervisor connects instances via NAT, make sure to create port mappings from the hypervisor to guest ports 22 (ssh), 80 (http), and 6443 (K8s API).
 
-Once more, you need to edit `/etc/hosts` to resolve `hello-microshift.local` to the MicroShift machine's IP, then you can `curl` the route and also access the page in your browser:
+Oo the MicroShift VM, ensure proper `firewalld` services are open. Use the following command on the MicroShift machine to open the services in the running config of `firewalld`.
+
+    sudo firewall-cmd --add-service={ssh,http,kube-apiserver}
+
+If you reboot the MicroShift machine, then these rules will be lost. To make the `firewalld` rules permanent, you may type on the MicroShift VM:
+
+    sudo firewall-cmd --runtime-to-permanent
+
+On your host that is attempting to access the MicroShift VM, you must to edit `/etc/hosts` to resolve `hello-microshift.local` to the MicroShift machine's IP, then you can `curl` the route and also access the page in your browser:
 
     [user@core ~]$ curl http://hello-microshift.local
     <!DOCTYPE html>
@@ -81,13 +89,13 @@ Once more, you need to edit `/etc/hosts` to resolve `hello-microshift.local` to 
 
 To remotely access the cluster using the `oc` client, copy the kubeconfig from the MicroShift machine to your local machine. Then update the URL of the `server:` field in the kubeconfig to point to your MicroShift machine:
 
-    mkdir -p ~/.kube/config
-    ssh -o "IdentitiesOnly=yes" -i ./builds/hello-microshift/demo/id_demo microshift@$MACHINE_IP "sudo cat /var/lib/microshift/resources/kubeadmin/kubeconfig" > ~/.kube/config
+    mkdir -p ~/.kube
+    ssh -o "IdentitiesOnly=yes" -i ./builds/hello-microshift-demo/id_demo microshift@$MACHINE_IP "sudo cat /var/lib/microshift/resources/kubeadmin/kubeconfig" > ~/.kube/config
     sed -i.bak 's|server: https://127.0.0.1:6443|server: https://hello-microshift.local:6443|' ~/.kube/config
 
-Now you can access the cluster remotely:
+Now you can access the cluster remotely. However, the `--insecure-skip-tls-verify=true` parameter must be set because the x509 on the MicroShift demo machine is not valid for `hello-microshift.local`. In production, an administrator would generate a proper x509 with a chain of trust, but this is just a demo.
 
-    [user@core ~]$ oc get pods -n demo
+    [user@core ~]$ oc --insecure-skip-tls-verify=true get pods -n demo
     NAME                                READY   STATUS    RESTARTS   AGE
     hello-microshift-6bdbc6c444-8sjc6   1/1     Running   0          45m
     hello-microshift-6bdbc6c444-bm5j4   1/1     Running   0          45m
