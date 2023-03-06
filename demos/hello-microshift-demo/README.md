@@ -76,7 +76,7 @@ Oo the MicroShift VM, ensure proper `firewalld` services are open. Use the follo
 
     sudo firewall-cmd --add-service={ssh,http,kube-apiserver}
 
-If you reboot the MicroShift machine, then these rules will be lost. To make the `firewalld` rules permanent, you may type on the MicroShift VM:
+If you reboot the MicroShift machine, then these rules will be lost. To make the `firewalld` rules permanent, you may type on the MicroShift machine:
 
     sudo firewall-cmd --runtime-to-permanent
 
