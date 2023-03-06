@@ -80,7 +80,7 @@ If you reboot the MicroShift machine, then these rules will be lost. To make the
 
     sudo firewall-cmd --runtime-to-permanent
 
-On your host that is attempting to access the MicroShift VM, you must to edit `/etc/hosts` to resolve `hello-microshift.local` to the MicroShift machine's IP, then you can `curl` the route and also access the page in your browser:
+On your host that is attempting to access the MicroShift machine, you must to edit `/etc/hosts` to resolve `hello-microshift.local` to the MicroShift machine's IP, then you can `curl` the route and also access the page in your browser:
 
     [user@core ~]$ curl http://hello-microshift.local
     <!DOCTYPE html>
